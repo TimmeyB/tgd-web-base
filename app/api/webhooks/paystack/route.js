@@ -46,10 +46,30 @@ export async function POST(request) {
     }
 
     if (purpose === 'campaign_payment') {
+      // Fixes a prior gap: this used to only mark payment as paid without
+      // ever flipping status out of 'draft', so paid campaigns never went live.
       await query(
-        `UPDATE campaigns SET payment_status = 'paid', paystack_reference = $1 WHERE id = $2`,
+        `UPDATE campaigns SET payment_status = 'paid', paystack_reference = $1, status = 'open' WHERE id = $2`,
         [reference, metadata.campaignId]
       );
+    }
+
+    if (purpose === 'campaign_edit') {
+      // Only apply if this is still the reference we're expecting — guards
+      // against a stale/duplicate webhook re-applying an old edit.
+      const campaignResult = await query('SELECT * FROM campaigns WHERE id = $1', [metadata.campaignId]);
+      const campaign = campaignResult.rows[0];
+      if (campaign && campaign.pending_edit_reference === reference && campaign.pending_edit) {
+        const fields = campaign.pending_edit;
+        await query(
+          `UPDATE campaigns
+           SET title = $1, description = $2, reward = $3, slots_total = $4, form_url = $5,
+               commission_amount = $6, total_charged = $7, pending_edit = NULL, pending_edit_reference = NULL
+           WHERE id = $8`,
+          [fields.title, fields.description, fields.reward, fields.slotsTotal, fields.formUrl,
+           fields.commissionAmount, fields.totalCharged, campaign.id]
+        );
+      }
     }
   }
 

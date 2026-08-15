@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import SupportLink from '../support-link';
 
 export default function BillingPage({ searchParams }) {
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,7 @@ export default function BillingPage({ searchParams }) {
           {loading ? 'Redirecting to Paystack…' : 'Subscribe with Paystack'}
         </button>
       </div>
+      <SupportLink />
     </div>
   );
 }

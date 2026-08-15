@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import SupportLink from '../support-link';
 
 const CAMPAIGN_TYPES = [
   {
@@ -36,6 +37,15 @@ const CAMPAIGN_TYPES = [
   },
 ];
 
+// Locked tester payout tiers, used as suggested ranges (not enforced).
+const SUGGESTED_RANGE = {
+  engagement: [0.25, 1],
+  upvote: [0.25, 1],
+  review: [1, 5],
+  survey: [1, 5],
+  testing: [3, 5], // bumped to 5–15+ below when screening is on (deeper test)
+};
+
 // Types that inherently need qualification, so screening defaults on.
 const SCREENING_DEFAULT_ON = ['testing', 'survey'];
 
@@ -43,6 +53,11 @@ let qIdCounter = 0;
 function newQuestion() {
   qIdCounter += 1;
   return { _key: qIdCounter, questionText: '', type: 'mc', options: ['', ''], qualifying: [] };
+}
+
+function suggestedRangeFor(campaignType, screeningMode) {
+  if (campaignType === 'testing' && screeningMode !== 'none') return [5, 15];
+  return SUGGESTED_RANGE[campaignType] || null;
 }
 
 export default function NewCampaignForm({ subscriptionActive = false }) {
@@ -67,9 +82,22 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   function selectType(id) {
     setCampaignType(id);
     setStep('form');
-    if (SCREENING_DEFAULT_ON.includes(id) && questions.length === 0) {
+    // Reset every field so switching types starts clean — otherwise numbers
+    // and text typed for one campaign silently carry over to the next.
+    setTitle('');
+    setDescription('');
+    setReward('');
+    setSlotsTotal('');
+    setFormUrl('');
+    setScreeningPoolCap('');
+    setError('');
+    setNeedsSubscription(false);
+    if (SCREENING_DEFAULT_ON.includes(id)) {
       setQuestions([newQuestion()]);
       setScreeningMode('manual');
+    } else {
+      setQuestions([]);
+      setScreeningMode('none');
     }
   }
 
@@ -253,6 +281,19 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
           <div className="field" style={{ flex: 1 }}>
             <label htmlFor="reward">Reward per completion ($)</label>
             <input id="reward" type="number" step="0.01" min="0.01" value={reward} onChange={(e) => setReward(e.target.value)} required />
+            {(() => {
+              const range = suggestedRangeFor(campaignType, screeningMode);
+              if (!range) return null;
+              const [min, max] = range;
+              const belowRange = reward && Number(reward) > 0 && Number(reward) < min;
+              return (
+                <p style={{ fontSize: 12, marginTop: 6, color: belowRange ? 'var(--amber)' : 'var(--text-dim)' }}>
+                  {belowRange
+                    ? `Suggested: $${min}–$${max}. Below-range rewards tend to attract lower-effort testers.`
+                    : `Suggested for this type: $${min}–$${max}${campaignType === 'testing' && screeningMode !== 'none' ? '+' : ''}`}
+                </p>
+              );
+            })()}
           </div>
           <div className="field" style={{ flex: 1 }}>
             <label htmlFor="slotsTotal">Number of testers</label>
@@ -413,6 +454,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
           {loading ? 'Launching…' : subscriptionActive ? 'Launch campaign' : 'Continue to subscribe & launch'}
         </button>
       </form>
+      <SupportLink />
     </div>
   );
 }
