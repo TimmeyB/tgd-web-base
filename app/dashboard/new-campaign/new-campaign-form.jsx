@@ -43,7 +43,7 @@ const SUGGESTED_RANGE = {
   upvote: [0.25, 1],
   review: [1, 5],
   survey: [1, 5],
-  testing: [3, 5], // bumped to 5–15+ below when screening is on (deeper test)
+  testing: [1, 5], // starting point — scales up with app complexity
 };
 
 // Types that inherently need qualification, so screening defaults on.
@@ -193,32 +193,43 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
           : [],
     };
 
-    const res = await fetch('/api/campaigns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      if (res.status === 403) {
-        // They've built out the whole campaign already — don't send them
-        // away, just surface the subscribe prompt right here.
-        setNeedsSubscription(true);
-        setError(data.error || 'An active subscription is required to launch campaigns.');
-      } else {
-        setError(data.error || 'Something went wrong.');
+    try {
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 403) {
+          // They've built out the whole campaign already — don't send them
+          // away, just surface the subscribe prompt right here.
+          setNeedsSubscription(true);
+          setError(data.error || 'An active subscription is required to launch campaigns.');
+        } else {
+          setError(data.error || 'Something went wrong.');
+        }
+        return;
       }
-      return;
+      // Campaign was created as a draft — it only goes live once Paystack
+      // confirms this payment via webhook. Send the brand to pay now.
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      // Covers network failures and non-JSON error responses (e.g. a server
+      // crash returning an HTML error page) — without this, the button was
+      // getting stuck on "Launching…" forever with no explanation.
+      setError('Something went wrong reaching the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
-    // Campaign was created as a draft — it only goes live once Paystack
-    // confirms this payment via webhook. Send the brand to pay now.
-    window.location.href = data.authorizationUrl;
   }
 
   if (step === 'type') {
     return (
       <div className="container" style={{ maxWidth: 640, paddingTop: 48, paddingBottom: 80 }}>
+        <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
+          ← Back to dashboard
+        </a>
         <p className="eyebrow">New campaign</p>
         <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 8 }}>What kind of campaign is this?</h1>
         <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 28 }}>
@@ -252,12 +263,17 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
 
   return (
     <div className="container" style={{ maxWidth: 560, paddingTop: 48, paddingBottom: 80 }}>
-      <button
-        onClick={() => setStep('type')}
-        style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}
-      >
-        ← Change campaign type
-      </button>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+        <button
+          onClick={() => setStep('type')}
+          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 13, cursor: 'pointer', padding: 0 }}
+        >
+          ← Change campaign type
+        </button>
+        <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none' }}>
+          Back to dashboard
+        </a>
+      </div>
       <p className="eyebrow">{selectedType.icon} {selectedType.label} campaign</p>
       <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 32 }}>Launch a campaign</h1>
 
@@ -457,4 +473,4 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       <SupportLink />
     </div>
   );
-}
+      }
