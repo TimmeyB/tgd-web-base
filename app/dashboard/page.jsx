@@ -71,7 +71,11 @@ export default async function DashboardPage() {
                   <span className="mono" style={{ fontSize: 11, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {TYPE_LABELS[c.campaign_type] || c.campaign_type}
                   </span>
-                  <h3 style={{ fontSize: 17, marginTop: 4 }}>{c.title}</h3>
+                  <h3 style={{ fontSize: 17, marginTop: 4 }}>
+                    <a href={`/dashboard/campaigns/${c.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {c.title}
+                    </a>
+                  </h3>
                   <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 4 }}>{c.description}</p>
                 </div>
                 <span
@@ -87,9 +91,10 @@ export default async function DashboardPage() {
                   {c.status}
                 </span>
               </div>
-              <div className="mono" style={{ marginTop: 16, display: 'flex', gap: 24, fontSize: 13, color: 'var(--text-dim)' }}>
+              <div className="mono" style={{ marginTop: 16, display: 'flex', gap: 24, alignItems: 'center', fontSize: 13, color: 'var(--text-dim)' }}>
                 <span>Reward: <span style={{ color: 'var(--amber)' }}>${c.reward}</span></span>
                 <span>Slots: {c.slots_filled} / {c.slots_total}</span>
+                <a href={`/dashboard/campaigns/${c.id}`} style={{ color: 'var(--green)' }}>View progress →</a>
               </div>
               {c.slots_filled === 0 && (
                 <CampaignActions campaignId={c.id} isDraft={c.status === 'draft'} />
