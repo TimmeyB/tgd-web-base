@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
 
-export async function POST() {
+export async function POST(request) {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
   if (!session) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
@@ -26,6 +26,7 @@ export async function POST() {
     reference,
     plan: process.env.PAYSTACK_PLAN_CODE || undefined,
     metadata: { purpose: 'subscription', brandId: brand.id },
+    callbackUrl: `${new URL(request.url).origin}/payment/callback`,
   });
 
   return NextResponse.json({ authorizationUrl: tx.authorization_url });

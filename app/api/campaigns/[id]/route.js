@@ -100,6 +100,7 @@ export async function PATCH(request, { params }) {
     amountNaira,
     reference,
     metadata: { purpose: 'campaign_edit', campaignId: campaign.id, brandId: brand.id },
+    callbackUrl: `${new URL(request.url).origin}/payment/callback`,
   });
 
   return NextResponse.json({ applied: false, authorizationUrl: tx.authorization_url });

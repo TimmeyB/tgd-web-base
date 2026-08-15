@@ -473,4 +473,4 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       <SupportLink />
     </div>
   );
-      }
+}

@@ -116,6 +116,7 @@ export async function POST(request) {
     amountNaira,
     reference,
     metadata: { purpose: 'campaign_payment', campaignId: campaign.id, brandId: brand.id },
+    callbackUrl: `${new URL(request.url).origin}/payment/callback`,
   });
 
   return NextResponse.json({ authorizationUrl: tx.authorization_url });
