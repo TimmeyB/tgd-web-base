@@ -1,0 +1,99 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function CampaignActions({ campaignId, isDraft }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleContinuePayment() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/pay`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.');
+        setLoading(false);
+        return;
+      }
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      setError('Could not reach the server. Try again.');
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Could not delete this campaign.');
+        setLoading(false);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setError('Could not reach the server. Try again.');
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      <a
+        href={`/dashboard/campaigns/${campaignId}/edit`}
+        className="mono"
+        style={{ fontSize: 12, color: 'var(--green)' }}
+      >
+        {isDraft ? 'Edit draft →' : 'Edit campaign →'}
+      </a>
+
+      {isDraft && (
+        <button
+          onClick={handleContinuePayment}
+          disabled={loading}
+          className="mono"
+          style={{ background: 'none', border: 'none', color: 'var(--amber)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+        >
+          {loading ? 'Redirecting…' : 'Continue to payment →'}
+        </button>
+      )}
+
+      {!confirmingDelete ? (
+        <button
+          onClick={() => setConfirmingDelete(true)}
+          className="mono"
+          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+        >
+          Delete
+        </button>
+      ) : (
+        <span className="mono" style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ color: 'var(--text-dim)' }}>Delete this campaign?</span>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          >
+            {loading ? 'Deleting…' : 'Yes, delete'}
+          </button>
+          <button
+            onClick={() => setConfirmingDelete(false)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 0 }}
+          >
+            Cancel
+          </button>
+        </span>
+      )}
+
+      {error && <span style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</span>}
+    </div>
+  );
+}

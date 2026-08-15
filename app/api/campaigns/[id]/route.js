@@ -54,7 +54,6 @@ export async function PATCH(request, { params }) {
   const newBaseCost = Number(reward) * Number(slotsTotal);
   const newCommission = Math.round(newBaseCost * COMMISSION_RATE * 100) / 100;
   const newTotal = newBaseCost + newCommission;
-  const alreadyPaid = Number(campaign.total_charged || 0);
 
   const fields = {
     title,
@@ -65,6 +64,26 @@ export async function PATCH(request, { params }) {
     commissionAmount: newCommission,
     totalCharged: newTotal,
   };
+
+  // Nothing has actually been charged yet for a draft — total_charged here
+  // is just the intended amount from creation time, not money received.
+  // So edits apply freely with no payment math; the real charge happens
+  // whenever they hit "Continue to payment".
+  if (campaign.payment_status !== 'paid') {
+    const updateResult = await query(
+      `UPDATE campaigns
+       SET title = $1, description = $2, reward = $3, slots_total = $4, form_url = $5,
+           commission_amount = $6, total_charged = $7
+       WHERE id = $8 RETURNING *`,
+      [fields.title, fields.description, fields.reward, fields.slotsTotal, fields.formUrl,
+       fields.commissionAmount, fields.totalCharged, campaign.id]
+    );
+    return NextResponse.json({ applied: true, stillNeedsPayment: true, campaign: updateResult.rows[0] });
+  }
+
+  // Past this point, the campaign is live and paid — total_charged genuinely
+  // reflects money already received, so it's safe to use as a baseline.
+  const alreadyPaid = Number(campaign.total_charged || 0);
 
   // Shrinking or same-cost edits never require a new charge — the brand
   // already paid enough to cover it, so apply immediately.
@@ -104,4 +123,25 @@ export async function PATCH(request, { params }) {
   });
 
   return NextResponse.json({ applied: false, authorizationUrl: tx.authorization_url });
+}
+
+export async function DELETE(request, { params }) {
+  const brand = await getBrand();
+  if (!brand) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
+
+  const result = await query('SELECT * FROM campaigns WHERE id = $1 AND brand_id = $2', [params.id, brand.id]);
+  const campaign = result.rows[0];
+  if (!campaign) return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+
+  // Same protection as editing — once a tester has accepted a slot, the
+  // campaign can't just vanish on them.
+  if (campaign.slots_filled > 0) {
+    return NextResponse.json(
+      { error: 'This campaign already has testers in progress, so it can no longer be deleted.' },
+      { status: 403 }
+    );
+  }
+
+  await query('DELETE FROM campaigns WHERE id = $1', [campaign.id]);
+  return NextResponse.json({ deleted: true });
 }

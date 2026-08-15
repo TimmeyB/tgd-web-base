@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import LogoutButton from './logout-button';
 import SupportLink from './support-link';
+import CampaignActions from './campaign-actions';
 
 const TYPE_LABELS = {
   engagement: '💬 Engagement',
@@ -90,14 +91,8 @@ export default async function DashboardPage() {
                 <span>Reward: <span style={{ color: 'var(--amber)' }}>${c.reward}</span></span>
                 <span>Slots: {c.slots_filled} / {c.slots_total}</span>
               </div>
-              {c.status === 'open' && c.slots_filled === 0 && (
-                <a
-                  href={`/dashboard/campaigns/${c.id}/edit`}
-                  className="mono"
-                  style={{ display: 'inline-block', marginTop: 12, fontSize: 12, color: 'var(--green)' }}
-                >
-                  Edit campaign →
-                </a>
+              {c.slots_filled === 0 && (
+                <CampaignActions campaignId={c.id} isDraft={c.status === 'draft'} />
               )}
             </div>
           ))}

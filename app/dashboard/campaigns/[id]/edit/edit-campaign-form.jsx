@@ -13,12 +13,15 @@ export default function EditCampaignForm({ campaign }) {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const locked = campaign.slots_filled > 0;
+  const isDraft = campaign.payment_status !== 'paid';
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setSaved(false);
 
     if (locked) return;
 
@@ -37,18 +40,37 @@ export default function EditCampaignForm({ campaign }) {
     }
 
     if (data.applied) {
-      router.push('/dashboard');
+      if (isDraft) {
+        // Nothing's been charged for a draft yet — stay here so they can
+        // hit "Continue to payment" next, rather than bouncing them away.
+        setSaved(true);
+      } else {
+        router.push('/dashboard');
+      }
       return;
     }
 
-    // Raising the budget needed a top-up payment — send them to pay it.
+    // Raising the budget on a paid, live campaign needed a top-up payment.
+    window.location.href = data.authorizationUrl;
+  }
+
+  async function handleContinuePayment() {
+    setLoading(true);
+    setError('');
+    const res = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || 'Something went wrong.');
+      setLoading(false);
+      return;
+    }
     window.location.href = data.authorizationUrl;
   }
 
   const newBaseCost = reward && slotsTotal ? Number(reward) * Number(slotsTotal) : 0;
   const newTotal = newBaseCost * 1.1;
   const alreadyPaid = Number(campaign.total_charged || 0);
-  const needsTopUp = newTotal > alreadyPaid;
+  const needsTopUp = !isDraft && newTotal > alreadyPaid;
 
   return (
     <div className="container" style={{ maxWidth: 560, paddingTop: 48, paddingBottom: 80 }}>
@@ -58,7 +80,7 @@ export default function EditCampaignForm({ campaign }) {
       >
         ← Back to dashboard
       </button>
-      <p className="eyebrow">Edit campaign</p>
+      <p className="eyebrow">{isDraft ? 'Edit draft' : 'Edit campaign'}</p>
       <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 12 }}>{campaign.title}</h1>
 
       {locked && (
@@ -67,6 +89,23 @@ export default function EditCampaignForm({ campaign }) {
             This campaign already has {campaign.slots_filled} tester{campaign.slots_filled === 1 ? '' : 's'} in progress,
             so its terms are locked to protect what they signed up for. Launch a new campaign instead if you want to change pricing.
           </p>
+        </div>
+      )}
+
+      {isDraft && !locked && (
+        <div className="card" style={{ background: 'rgba(138,144,156,0.1)', border: '1px solid var(--border)', marginBottom: 20, padding: 16 }}>
+          <p style={{ fontSize: 14, color: 'var(--text-dim)' }}>
+            This campaign was never paid for, so it isn't live yet. Edit freely below, then hit "Continue to payment" when you're ready to launch it.
+          </p>
+        </div>
+      )}
+
+      {saved && (
+        <div className="card" style={{ background: 'rgba(62,207,142,0.1)', border: '1px solid var(--green)', marginBottom: 20, padding: 16 }}>
+          <p style={{ fontSize: 14, color: 'var(--green)', marginBottom: 10 }}>Saved. Ready to launch when you are.</p>
+          <button onClick={handleContinuePayment} disabled={loading} className="btn btn-primary" style={{ width: '100%' }}>
+            {loading ? 'Redirecting…' : `Continue to payment — $${newTotal.toFixed(2)}`}
+          </button>
         </div>
       )}
 
@@ -98,20 +137,22 @@ export default function EditCampaignForm({ campaign }) {
           {!locked && newBaseCost > 0 && (
             <div className="card" style={{ background: 'var(--bg)', marginTop: 8, marginBottom: 16, padding: 16 }}>
               <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span>New total (budget + 10%)</span>
+                <span>{isDraft ? 'Total to pay at launch' : 'New total (budget + 10%)'}</span>
                 <span>${newTotal.toFixed(2)}</span>
               </div>
-              <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
-                <span>Already paid</span>
-                <span>${alreadyPaid.toFixed(2)}</span>
-              </div>
+              {!isDraft && (
+                <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Already paid</span>
+                  <span>${alreadyPaid.toFixed(2)}</span>
+                </div>
+              )}
               {needsTopUp && (
                 <div className="mono" style={{ fontSize: 15, color: 'var(--amber)', display: 'flex', justifyContent: 'space-between', paddingTop: 10, marginTop: 10, borderTop: '1px solid var(--border)' }}>
                   <span>Top-up required</span>
                   <span>${(newTotal - alreadyPaid).toFixed(2)}</span>
                 </div>
               )}
-              {!needsTopUp && (
+              {!needsTopUp && !isDraft && (
                 <p style={{ fontSize: 12, color: 'var(--green)', marginTop: 10 }}>
                   Covered by what you already paid — no extra charge.
                 </p>
