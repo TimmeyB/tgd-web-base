@@ -4,21 +4,26 @@ import { useState } from 'react';
 import SupportLink from '../support-link';
 
 export default function BillingPage({ searchParams }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const blocked = searchParams?.blocked === '1';
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function handleSubscribe() {
     setError('');
     setLoading(true);
-    const res = await fetch('/api/billing/subscribe', { method: 'POST' });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error || 'Something went wrong.');
-      return;
+    try {
+      const res = await fetch('/api/billing/subscribe', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.');
+        return;
+      }
+      window.location.href = data.authorizationUrl;
+    } catch (err) {
+      setError('Something went wrong reaching the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
-    window.location.href = data.authorizationUrl;
   }
 
   return (
@@ -29,23 +34,25 @@ export default function BillingPage({ searchParams }) {
       {blocked && (
         <div className="card" style={{ background: 'rgba(217,164,65,0.1)', border: '1px solid var(--amber)', marginBottom: 20, padding: 16 }}>
           <p style={{ fontSize: 14, color: 'var(--amber)' }}>
-            You need an active subscription before launching campaigns.
+            You need an active subscription to create campaigns.
           </p>
         </div>
       )}
 
-      <div className="card">
-        <h3 style={{ fontSize: 18, marginBottom: 4 }}>TaskGrind Access</h3>
-        <p className="mono" style={{ fontSize: 28, color: 'var(--green)', margin: '12px 0' }}>
+      <div className="card" style={{ padding: 24 }}>
+        <h2 style={{ fontSize: 18, marginBottom: 8 }}>TaskGrind Access</h2>
+        <p className="mono" style={{ fontSize: 28, color: 'var(--green)', marginBottom: 16 }}>
           $8<span style={{ fontSize: 14, color: 'var(--text-dim)' }}>/month</span>
         </p>
-        <ul style={{ color: 'var(--text-dim)', fontSize: 14, lineHeight: 1.9, paddingLeft: 18, marginBottom: 24 }}>
+        <ul style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.8, marginBottom: 24, paddingLeft: 20 }}>
           <li>Launch unlimited campaigns — Engagement, Upvote, Reviews, Testing</li>
           <li>Full screening builder for Testing campaigns</li>
           <li>Live dashboard with campaign metrics</li>
           <li>10% platform commission on tester budget, charged at launch — no hidden fees</li>
         </ul>
-        {error && <p className="error-text">{error}</p>}
+
+        {error && <p className="error-text" style={{ marginBottom: 16 }}>{error}</p>}
+
         <button className="btn btn-primary" onClick={handleSubscribe} disabled={loading} style={{ width: '100%' }}>
           {loading ? 'Redirecting to Paystack…' : 'Subscribe with Paystack'}
         </button>
@@ -53,4 +60,4 @@ export default function BillingPage({ searchParams }) {
       <SupportLink />
     </div>
   );
-}
+          }
