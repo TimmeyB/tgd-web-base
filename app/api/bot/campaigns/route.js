@@ -14,10 +14,16 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 401 });
   }
 
+  const statusParam = new URL(request.url).searchParams.get('status') || 'open';
+  if (!['open', 'pending_review'].includes(statusParam)) {
+    return NextResponse.json({ error: 'status must be open or pending_review.' }, { status: 400 });
+  }
+
   const campaignsResult = await query(
     `SELECT id, brand_id, title, description, reward, slots_total, slots_filled,
-            campaign_type, screening_mode, screening_pool_cap, form_url
-     FROM campaigns WHERE status = 'open' ORDER BY id DESC`
+            campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url
+     FROM campaigns WHERE status = $1 ORDER BY id DESC`,
+    [statusParam]
   );
   const campaigns = campaignsResult.rows;
 

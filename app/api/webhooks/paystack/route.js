@@ -46,11 +46,17 @@ export async function POST(request) {
     }
 
     if (purpose === 'campaign_payment') {
-      // Fixes a prior gap: this used to only mark payment as paid without
-      // ever flipping status out of 'draft', so paid campaigns never went live.
+      // Self-handled campaigns are the brand's own risk (they review their
+      // own testers) — no reason to gate on you being around to approve.
+      // Admin-handled ones put your own Telegram reputation on the line,
+      // so those still wait for a human look before going live.
+      const campaignResult = await query('SELECT handling_mode FROM campaigns WHERE id = $1', [metadata.campaignId]);
+      const handlingMode = campaignResult.rows[0]?.handling_mode;
+      const newStatus = handlingMode === 'self' ? 'open' : 'pending_review';
+
       await query(
-        `UPDATE campaigns SET payment_status = 'paid', paystack_reference = $1, status = 'open' WHERE id = $2`,
-        [reference, metadata.campaignId]
+        `UPDATE campaigns SET payment_status = 'paid', paystack_reference = $1, status = $2 WHERE id = $3`,
+        [reference, newStatus, metadata.campaignId]
       );
     }
 

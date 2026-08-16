@@ -13,6 +13,14 @@ const TYPE_LABELS = {
   survey: '📋 Survey',
 };
 
+const STATUS_BADGE = {
+  draft: { bg: 'rgba(138,144,156,0.15)', color: 'var(--text-dim)', label: 'draft' },
+  pending_review: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'pending review' },
+  open: { bg: 'rgba(62,207,142,0.15)', color: 'var(--green)', label: 'open' },
+  closed: { bg: 'rgba(138,144,156,0.15)', color: 'var(--text-dim)', label: 'closed' },
+  rejected: { bg: 'rgba(220,80,80,0.15)', color: 'var(--danger)', label: 'rejected' },
+};
+
 export default async function DashboardPage() {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
@@ -84,11 +92,11 @@ export default async function DashboardPage() {
                     fontSize: 12,
                     padding: '4px 10px',
                     borderRadius: 6,
-                    background: c.status === 'open' ? 'rgba(62,207,142,0.15)' : 'rgba(138,144,156,0.15)',
-                    color: c.status === 'open' ? 'var(--green)' : 'var(--text-dim)',
+                    background: STATUS_BADGE[c.status]?.bg || 'rgba(138,144,156,0.15)',
+                    color: STATUS_BADGE[c.status]?.color || 'var(--text-dim)',
                   }}
                 >
-                  {c.status}
+                  {STATUS_BADGE[c.status]?.label || c.status}
                 </span>
               </div>
               <div className="mono" style={{ marginTop: 16, display: 'flex', gap: 24, alignItems: 'center', fontSize: 13, color: 'var(--text-dim)' }}>

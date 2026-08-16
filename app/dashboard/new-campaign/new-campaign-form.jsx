@@ -49,6 +49,8 @@ const SUGGESTED_RANGE = {
 // Types that inherently need qualification, so screening defaults on.
 const SCREENING_DEFAULT_ON = ['testing', 'survey'];
 
+const COMMISSION_RATES = { self: 0.10, admin: 0.13 };
+
 let qIdCounter = 0;
 function newQuestion() {
   qIdCounter += 1;
@@ -70,6 +72,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [reward, setReward] = useState('');
   const [slotsTotal, setSlotsTotal] = useState('');
   const [formUrl, setFormUrl] = useState('');
+  const [handlingMode, setHandlingMode] = useState('admin'); // 'self' (10%) | 'admin' (13%)
 
   const [screeningMode, setScreeningMode] = useState('none'); // 'none' | 'auto' | 'manual'
   const [screeningPoolCap, setScreeningPoolCap] = useState('');
@@ -89,6 +92,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     setReward('');
     setSlotsTotal('');
     setFormUrl('');
+    setHandlingMode('admin');
     setScreeningPoolCap('');
     setError('');
     setNeedsSubscription(false);
@@ -180,6 +184,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       slotsTotal,
       campaignType,
       formUrl: formUrl.trim() || null,
+      handlingMode,
       screeningMode,
       screeningPoolCap: screeningPoolCap ? Number(screeningPoolCap) : null,
       screeningQuestions:
@@ -293,6 +298,43 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
             required
           />
         </div>
+
+        <div className="field">
+          <label>Who reviews submissions?</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+            <label
+              className="card"
+              style={{
+                display: 'flex', gap: 12, alignItems: 'flex-start', padding: 14, cursor: 'pointer',
+                border: handlingMode === 'self' ? '1px solid var(--green)' : '1px solid var(--border)',
+              }}
+            >
+              <input type="radio" name="handlingMode" checked={handlingMode === 'self'} onChange={() => setHandlingMode('self')} style={{ marginTop: 3 }} />
+              <span>
+                <span style={{ display: 'block', fontSize: 14, marginBottom: 2 }}>I'll review submissions myself — 10% commission</span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)' }}>
+                  Applications and proof land on your dashboard with approve/reject buttons.
+                </span>
+              </span>
+            </label>
+            <label
+              className="card"
+              style={{
+                display: 'flex', gap: 12, alignItems: 'flex-start', padding: 14, cursor: 'pointer',
+                border: handlingMode === 'admin' ? '1px solid var(--green)' : '1px solid var(--border)',
+              }}
+            >
+              <input type="radio" name="handlingMode" checked={handlingMode === 'admin'} onChange={() => setHandlingMode('admin')} style={{ marginTop: 3 }} />
+              <span>
+                <span style={{ display: 'block', fontSize: 14, marginBottom: 2 }}>Let TaskGrind admin handle it — 13% commission</span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)' }}>
+                  Testers submit proof straight to our admin for review — nothing to do on your end.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: 16 }}>
           <div className="field" style={{ flex: 1 }}>
             <label htmlFor="reward">Reward per completion ($)</label>
@@ -436,22 +478,26 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
             )}
         </div>
 
-        {reward && slotsTotal && Number(reward) > 0 && Number(slotsTotal) > 0 && (
-          <div className="card" style={{ background: 'var(--bg)', marginTop: 8, marginBottom: 16, padding: 16 }}>
-            <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>Tester budget ({slotsTotal} × ${Number(reward).toFixed(2)})</span>
-              <span>${(Number(reward) * Number(slotsTotal)).toFixed(2)}</span>
+        {reward && slotsTotal && Number(reward) > 0 && Number(slotsTotal) > 0 && (() => {
+          const rate = COMMISSION_RATES[handlingMode];
+          const base = Number(reward) * Number(slotsTotal);
+          return (
+            <div className="card" style={{ background: 'var(--bg)', marginTop: 8, marginBottom: 16, padding: 16 }}>
+              <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Tester budget ({slotsTotal} × ${Number(reward).toFixed(2)})</span>
+                <span>${base.toFixed(2)}</span>
+              </div>
+              <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span>Platform commission ({Math.round(rate * 100)}%)</span>
+                <span>${(base * rate).toFixed(2)}</span>
+              </div>
+              <div className="mono" style={{ fontSize: 15, color: 'var(--green)', display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                <span>Total charged at launch</span>
+                <span>${(base * (1 + rate)).toFixed(2)}</span>
+              </div>
             </div>
-            <div className="mono" style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span>Platform commission (10%)</span>
-              <span>${(Number(reward) * Number(slotsTotal) * 0.1).toFixed(2)}</span>
-            </div>
-            <div className="mono" style={{ fontSize: 15, color: 'var(--green)', display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-              <span>Total charged at launch</span>
-              <span>${(Number(reward) * Number(slotsTotal) * 1.1).toFixed(2)}</span>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {error && <p className="error-text">{error}</p>}
 

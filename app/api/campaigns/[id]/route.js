@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
 
-const COMMISSION_RATE = 0.10;
+const COMMISSION_RATES = { self: 0.10, admin: 0.13 };
 
 async function getBrand() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -52,7 +52,7 @@ export async function PATCH(request, { params }) {
   }
 
   const newBaseCost = Number(reward) * Number(slotsTotal);
-  const newCommission = Math.round(newBaseCost * COMMISSION_RATE * 100) / 100;
+  const newCommission = Math.round(newBaseCost * COMMISSION_RATES[campaign.handling_mode] * 100) / 100;
   const newTotal = newBaseCost + newCommission;
 
   const fields = {

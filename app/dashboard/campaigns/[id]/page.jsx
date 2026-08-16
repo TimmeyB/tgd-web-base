@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import SubmissionReviewActions from './submission-review-actions';
 
 const STATUS_STYLES = {
   applied: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'Applied' },
@@ -52,6 +53,11 @@ export default async function CampaignDetailPage({ params }) {
           <span>Approved: {counts.approved}</span>
           <span>Completed: {counts.completed}</span>
         </div>
+        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-dim)' }}>
+          {campaign.handling_mode === 'self'
+            ? 'You review submissions yourself — approve or reject each one below.'
+            : 'TaskGrind admin reviews submissions for this campaign — nothing to do here except watch progress.'}
+        </p>
       </div>
 
       {submissions.length === 0 ? (
@@ -87,6 +93,9 @@ export default async function CampaignDetailPage({ params }) {
                   <a href={s.proof_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: 'var(--green)' }}>
                     View proof →
                   </a>
+                )}
+                {campaign.handling_mode === 'self' && s.status === 'applied' && (
+                  <SubmissionReviewActions submissionId={s.id} />
                 )}
               </div>
             );

@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
 
-const COMMISSION_RATE = 0.10;
+const COMMISSION_RATES = { self: 0.10, admin: 0.13 };
 
 async function getBrand() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -39,6 +39,7 @@ export async function POST(request) {
     reward,
     slotsTotal,
     campaignType,
+    handlingMode,
     screeningMode,
     screeningPoolCap,
     screeningQuestions,
@@ -51,6 +52,7 @@ export async function POST(request) {
   if (Number(reward) <= 0 || Number(slotsTotal) <= 0) {
     return NextResponse.json({ error: 'Reward and slots must be positive numbers.' }, { status: 400 });
   }
+  const finalHandlingMode = handlingMode === 'self' ? 'self' : 'admin';
 
   // Screening is now available on every campaign type, not just Testing —
   // gate all downstream logic on the mode itself instead of the type.
@@ -74,15 +76,15 @@ export async function POST(request) {
   }
 
   const baseCost = Number(reward) * Number(slotsTotal);
-  const commissionAmount = Math.round(baseCost * COMMISSION_RATE * 100) / 100;
+  const commissionAmount = Math.round(baseCost * COMMISSION_RATES[finalHandlingMode] * 100) / 100;
   const totalCharge = baseCost + commissionAmount;
 
   // Created as a draft, invisible to testers, until Paystack confirms
   // payment via webhook — the campaign never goes live unpaid.
   const campaignResult = await query(
-    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged)
-     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11) RETURNING *`,
-    [brand.id, title, description, reward, slotsTotal, campaignType, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge]
+    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged)
+     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge]
   );
   const campaign = campaignResult.rows[0];
 
