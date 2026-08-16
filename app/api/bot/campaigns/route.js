@@ -33,13 +33,20 @@ export async function GET(request) {
 
   const ids = campaigns.map((c) => c.id);
   const questionsResult = await query(
-    `SELECT * FROM screening_questions WHERE campaign_id = ANY($1) ORDER BY campaign_id, question_order`,
+    `SELECT * FROM screening_questions WHERE campaign_id = ANY($1) ORDER BY campaign_id, sort_order`,
     [ids]
   );
   const questionsByCampaign = {};
   for (const q of questionsResult.rows) {
     if (!questionsByCampaign[q.campaign_id]) questionsByCampaign[q.campaign_id] = [];
-    questionsByCampaign[q.campaign_id].push(q);
+    // Translate DB column names to the field names the bot expects, so the
+    // bot's sync code doesn't need to know about the web app's actual schema.
+    questionsByCampaign[q.campaign_id].push({
+      question_text: q.question_text,
+      type: q.question_type,
+      options: q.options,
+      qualifying: q.qualifying_answers,
+    });
   }
 
   const enriched = campaigns.map((c) => ({

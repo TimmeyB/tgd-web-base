@@ -92,7 +92,7 @@ export async function POST(request) {
     for (let i = 0; i < screeningQuestions.length; i++) {
       const q = screeningQuestions[i];
       await query(
-        `INSERT INTO screening_questions (campaign_id, question_order, question_text, type, options, qualifying)
+        `INSERT INTO screening_questions (campaign_id, sort_order, question_text, question_type, options, qualifying_answers)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           campaign.id,
