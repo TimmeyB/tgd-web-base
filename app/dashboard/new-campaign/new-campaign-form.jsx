@@ -73,6 +73,9 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [slotsTotal, setSlotsTotal] = useState('');
   const [formUrl, setFormUrl] = useState('');
   const [handlingMode, setHandlingMode] = useState('admin'); // 'self' (10%) | 'admin' (13%)
+  const [successExampleImage, setSuccessExampleImage] = useState(null); // base64 data URI
+  const [successExampleMime, setSuccessExampleMime] = useState('');
+  const [imageError, setImageError] = useState('');
 
   const [screeningMode, setScreeningMode] = useState('none'); // 'none' | 'auto' | 'manual'
   const [screeningPoolCap, setScreeningPoolCap] = useState('');
@@ -81,6 +84,23 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [error, setError] = useState('');
   const [needsSubscription, setNeedsSubscription] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  function handleSuccessImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageError('');
+    if (file.size > 3 * 1024 * 1024) {
+      setImageError('Image is too large — keep it under 3MB.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSuccessExampleImage(reader.result);
+      setSuccessExampleMime(file.type);
+    };
+    reader.readAsDataURL(file);
+  }
 
   function selectType(id) {
     setCampaignType(id);
@@ -93,6 +113,9 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     setSlotsTotal('');
     setFormUrl('');
     setHandlingMode('admin');
+    setSuccessExampleImage(null);
+    setSuccessExampleMime('');
+    setImageError('');
     setScreeningPoolCap('');
     setError('');
     setNeedsSubscription(false);
@@ -185,6 +208,8 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       campaignType,
       formUrl: formUrl.trim() || null,
       handlingMode,
+      successExampleImage: handlingMode === 'admin' ? successExampleImage : null,
+      successExampleMime: handlingMode === 'admin' ? successExampleMime : null,
       screeningMode,
       screeningPoolCap: screeningPoolCap ? Number(screeningPoolCap) : null,
       screeningQuestions:
@@ -334,6 +359,20 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
             </label>
           </div>
         </div>
+
+        {handlingMode === 'admin' && (
+          <div className="field">
+            <label htmlFor="successExample">What does success look like? (optional screenshot)</label>
+            <input id="successExample" type="file" accept="image/*" onChange={handleSuccessImageChange} />
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
+              Helps our admin quickly recognize a correct submission when reviewing testers' proof.
+            </p>
+            {imageError && <p className="error-text" style={{ fontSize: 12, marginTop: 4 }}>{imageError}</p>}
+            {successExampleImage && (
+              <img src={successExampleImage} alt="Success example preview" style={{ marginTop: 10, maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--border)' }} />
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 16 }}>
           <div className="field" style={{ flex: 1 }}>

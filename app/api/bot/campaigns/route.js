@@ -21,7 +21,9 @@ export async function GET(request) {
 
   const campaignsResult = await query(
     `SELECT id, brand_id, title, description, reward, slots_total, slots_filled,
-            campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url
+            campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url,
+            announce_requested, announced_at,
+            (success_example_image IS NOT NULL) AS has_success_example
      FROM campaigns WHERE status = $1 ORDER BY id DESC`,
     [statusParam]
   );

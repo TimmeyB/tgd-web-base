@@ -40,6 +40,8 @@ export async function POST(request) {
     slotsTotal,
     campaignType,
     handlingMode,
+    successExampleImage,
+    successExampleMime,
     screeningMode,
     screeningPoolCap,
     screeningQuestions,
@@ -53,6 +55,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Reward and slots must be positive numbers.' }, { status: 400 });
   }
   const finalHandlingMode = handlingMode === 'self' ? 'self' : 'admin';
+  // Client sends a full data URI (data:image/png;base64,XXXX) — strip the
+  // prefix so we store raw base64, since successExampleMime already has
+  // the type info and the serving route needs raw bytes to decode.
+  const rawImageBase64 = successExampleImage && finalHandlingMode === 'admin'
+    ? successExampleImage.split(',').pop()
+    : null;
 
   // Screening is now available on every campaign type, not just Testing —
   // gate all downstream logic on the mode itself instead of the type.
@@ -82,9 +90,9 @@ export async function POST(request) {
   // Created as a draft, invisible to testers, until Paystack confirms
   // payment via webhook — the campaign never goes live unpaid.
   const campaignResult = await query(
-    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged)
-     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge]
+    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged, success_example_image, success_example_mime)
+     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge, rawImageBase64, rawImageBase64 ? successExampleMime : null]
   );
   const campaign = campaignResult.rows[0];
 

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import SubmissionReviewActions from './submission-review-actions';
+import AnnounceButton from './announce-button';
 
 const STATUS_STYLES = {
   applied: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'Applied' },
@@ -58,7 +59,29 @@ export default async function CampaignDetailPage({ params }) {
             ? 'You review submissions yourself — approve or reject each one below.'
             : 'TaskGrind admin reviews submissions for this campaign — nothing to do here except watch progress.'}
         </p>
+        {campaign.success_example_image && (
+          <div style={{ marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>Success example on file for admin review:</p>
+            <img
+              src={`/api/campaigns/${campaign.id}/success-image`}
+              alt="Success example"
+              style={{ maxWidth: 200, maxHeight: 150, borderRadius: 8, border: '1px solid var(--border)' }}
+            />
+          </div>
+        )}
       </div>
+
+      {campaign.status === 'open' && (
+        <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+          {campaign.announced_at ? (
+            <p style={{ fontSize: 13, color: 'var(--green)' }}>✅ Announced to testers.</p>
+          ) : campaign.announce_requested ? (
+            <p style={{ fontSize: 13, color: 'var(--amber)' }}>📢 Announcement queued — going out shortly.</p>
+          ) : (
+            <AnnounceButton campaignId={campaign.id} />
+          )}
+        </div>
+      )}
 
       {submissions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 48 }}>
