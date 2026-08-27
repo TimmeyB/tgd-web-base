@@ -104,9 +104,14 @@ export default async function DashboardPage() {
                 <span>Slots: {c.slots_filled} / {c.slots_total}</span>
                 <a href={`/dashboard/campaigns/${c.id}`} style={{ color: 'var(--green)' }}>View progress →</a>
               </div>
-              {c.slots_filled === 0 && (
-                <CampaignActions campaignId={c.id} isDraft={c.status === 'draft'} />
-              )}
+              <CampaignActions
+                campaignId={c.id}
+                isDraft={c.status === 'draft'}
+                status={c.status}
+                announceRequested={c.announce_requested}
+                announcedAt={c.announced_at}
+                locked={c.slots_filled > 0}
+              />
             </div>
           ))}
         </div>

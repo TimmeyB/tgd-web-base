@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SupportLink from '../support-link';
+import QuestionBuilder from './question-builder';
 
 const CAMPAIGN_TYPES = [
   {
@@ -81,6 +82,10 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [screeningPoolCap, setScreeningPoolCap] = useState('');
   const [questions, setQuestions] = useState([]);
 
+  const [durationDays, setDurationDays] = useState('');
+  const [requiresDailyReport, setRequiresDailyReport] = useState(false);
+  const [dailyReportQuestions, setDailyReportQuestions] = useState([]);
+
   const [error, setError] = useState('');
   const [needsSubscription, setNeedsSubscription] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -117,6 +122,9 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     setSuccessExampleMime('');
     setImageError('');
     setScreeningPoolCap('');
+    setDurationDays('');
+    setRequiresDailyReport(false);
+    setDailyReportQuestions([]);
     setError('');
     setNeedsSubscription(false);
     if (SCREENING_DEFAULT_ON.includes(id)) {
@@ -128,46 +136,8 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     }
   }
 
-  function updateQuestion(key, patch) {
-    setQuestions((qs) => qs.map((q) => (q._key === key ? { ...q, ...patch } : q)));
-  }
-
-  function updateOption(qKey, index, value) {
-    setQuestions((qs) =>
-      qs.map((q) => {
-        if (q._key !== qKey) return q;
-        const options = [...q.options];
-        options[index] = value;
-        return { ...q, options };
-      })
-    );
-  }
-
-  function addOption(qKey) {
-    setQuestions((qs) =>
-      qs.map((q) => (q._key === qKey ? { ...q, options: [...q.options, ''] } : q))
-    );
-  }
-
-  function toggleQualifying(qKey, optionValue) {
-    setQuestions((qs) =>
-      qs.map((q) => {
-        if (q._key !== qKey) return q;
-        const isIn = q.qualifying.includes(optionValue);
-        return {
-          ...q,
-          qualifying: isIn ? q.qualifying.filter((v) => v !== optionValue) : [...q.qualifying, optionValue],
-        };
-      })
-    );
-  }
-
   function addQuestion() {
     setQuestions((qs) => [...qs, newQuestion()]);
-  }
-
-  function removeQuestion(key) {
-    setQuestions((qs) => qs.filter((q) => q._key !== key));
   }
 
   async function handleSubmit(e) {
@@ -199,6 +169,22 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       }
     }
 
+    if (campaignType === 'testing' && Number(durationDays) > 0 && requiresDailyReport) {
+      for (const q of dailyReportQuestions) {
+        if (!q.questionText.trim()) {
+          setError('Every daily report question needs text.');
+          return;
+        }
+        if (q.type === 'mc') {
+          const cleanOptions = q.options.map((o) => o.trim()).filter(Boolean);
+          if (cleanOptions.length < 2) {
+            setError('Multiple choice questions need at least 2 options.');
+            return;
+          }
+        }
+      }
+    }
+
     setLoading(true);
     const payload = {
       title,
@@ -219,6 +205,16 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
               type: q.type,
               options: q.type === 'mc' ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
               qualifying: q.type === 'mc' ? q.qualifying : undefined,
+            }))
+          : [],
+      durationDays: campaignType === 'testing' && durationDays ? Number(durationDays) : 0,
+      requiresDailyReport: campaignType === 'testing' && Number(durationDays) > 0 ? requiresDailyReport : false,
+      dailyReportQuestions:
+        campaignType === 'testing' && Number(durationDays) > 0 && requiresDailyReport
+          ? dailyReportQuestions.map((q) => ({
+              questionText: q.questionText.trim(),
+              type: q.type,
+              options: q.type === 'mc' ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
             }))
           : [],
     };
@@ -442,68 +438,12 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
                   />
                 </div>
 
-                {questions.map((q, qi) => (
-                  <div key={q._key} className="card" style={{ background: 'var(--bg)', marginBottom: 12, padding: 16 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <span className="mono" style={{ fontSize: 12, color: 'var(--text-dim)' }}>Question {qi + 1}</span>
-                      {questions.length > 1 && (
-                        <button type="button" onClick={() => removeQuestion(q._key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', fontSize: 12, cursor: 'pointer' }}>
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                    <div className="field">
-                      <input
-                        value={q.questionText}
-                        onChange={(e) => updateQuestion(q._key, { questionText: e.target.value })}
-                        placeholder="Question text"
-                      />
-                    </div>
-                    <div className="field">
-                      <select
-                        value={q.type}
-                        onChange={(e) => updateQuestion(q._key, { type: e.target.value })}
-                        style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', color: 'var(--text)' }}
-                      >
-                        <option value="mc">Multiple choice</option>
-                        <option value="text">Free text</option>
-                        <option value="media">Photo/video</option>
-                      </select>
-                    </div>
-
-                    {q.type === 'mc' && (
-                      <div style={{ marginTop: 4 }}>
-                        {q.options.map((opt, oi) => (
-                          <div key={oi} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                            <input
-                              value={opt}
-                              onChange={(e) => updateOption(q._key, oi, e.target.value)}
-                              placeholder={`Option ${oi + 1}`}
-                              style={{ flex: 1 }}
-                            />
-                            {screeningMode === 'auto' && opt.trim() && (
-                              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={q.qualifying.includes(opt.trim())}
-                                  onChange={() => toggleQualifying(q._key, opt.trim())}
-                                />
-                                Qualifies
-                              </label>
-                            )}
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => addOption(q._key)}
-                          style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 6, color: 'var(--text-dim)', fontSize: 12, padding: '6px 10px', cursor: 'pointer' }}
-                        >
-                          + Add option
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                <QuestionBuilder
+                  questions={questions}
+                  setQuestions={setQuestions}
+                  allowQualifying
+                  autoMode={screeningMode === 'auto'}
+                />
 
                 <button
                   type="button"
@@ -516,6 +456,74 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
               </>
             )}
         </div>
+
+        {campaignType === 'testing' && (
+          <div style={{ marginTop: 8, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+            <p className="eyebrow" style={{ marginBottom: 12 }}>Extended testing (optional)</p>
+            <div className="field">
+              <label htmlFor="durationDays">Duration (days) — leave blank for a normal one-time task</label>
+              <input
+                id="durationDays"
+                type="number"
+                min="1"
+                value={durationDays}
+                onChange={(e) => setDurationDays(e.target.value)}
+                placeholder="e.g. 14"
+              />
+              {Number(durationDays) >= 14 && (
+                <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
+                  Google requires 12 continuously-active testers for Play Store closed testing approval — consider opening a few extra slots to buffer against dropout.
+                </p>
+              )}
+            </div>
+
+            {Number(durationDays) > 0 && (
+              <>
+                <div className="card" style={{ background: 'rgba(217,164,65,0.1)', border: '1px solid var(--amber)', padding: 14, marginBottom: 12 }}>
+                  <p style={{ fontSize: 13, color: 'var(--amber)' }}>
+                    Payment only happens after the tester completes the full {durationDays} day{Number(durationDays) === 1 ? '' : 's'} and submits final proof — no partial payment for partial completion. This is shown to testers before they start.
+                  </p>
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={requiresDailyReport}
+                    onChange={(e) => {
+                      setRequiresDailyReport(e.target.checked);
+                      if (e.target.checked && dailyReportQuestions.length === 0) {
+                        setDailyReportQuestions([newQuestion()]);
+                      }
+                    }}
+                  />
+                  Require a written daily report (otherwise testers just get a daily one-tap check-in)
+                </label>
+
+                {requiresDailyReport && (
+                  <>
+                    <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
+                      Keep it to 2–3 questions — the more you ask daily, the more testers drop off over {durationDays} days.
+                    </p>
+                    <QuestionBuilder
+                      questions={dailyReportQuestions}
+                      setQuestions={setDailyReportQuestions}
+                      allowQualifying={false}
+                      autoMode={false}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDailyReportQuestions((qs) => [...qs, newQuestion()])}
+                      className="btn"
+                      style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', width: '100%' }}
+                    >
+                      + Add another daily question
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {reward && slotsTotal && Number(reward) > 0 && Number(slotsTotal) > 0 && (() => {
           const rate = COMMISSION_RATES[handlingMode];

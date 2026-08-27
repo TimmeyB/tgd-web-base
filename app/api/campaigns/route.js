@@ -46,6 +46,9 @@ export async function POST(request) {
     screeningPoolCap,
     screeningQuestions,
     formUrl,
+    durationDays,
+    requiresDailyReport,
+    dailyReportQuestions,
   } = await request.json();
 
   if (!title || !description || !reward || !slotsTotal || !campaignType) {
@@ -83,6 +86,23 @@ export async function POST(request) {
     }
   }
 
+  const finalDurationDays = campaignType === 'testing' && Number(durationDays) > 0 ? Number(durationDays) : 0;
+  const finalRequiresDailyReport = finalDurationDays > 0 && !!requiresDailyReport;
+
+  if (finalRequiresDailyReport) {
+    if (!Array.isArray(dailyReportQuestions) || dailyReportQuestions.length === 0) {
+      return NextResponse.json({ error: 'Add at least one daily report question, or turn off written reports.' }, { status: 400 });
+    }
+    for (const q of dailyReportQuestions) {
+      if (!q.questionText || !q.type) {
+        return NextResponse.json({ error: 'Every daily report question needs text and a type.' }, { status: 400 });
+      }
+      if (q.type === 'mc' && (!Array.isArray(q.options) || q.options.length < 2)) {
+        return NextResponse.json({ error: 'Multiple choice questions need at least 2 options.' }, { status: 400 });
+      }
+    }
+  }
+
   const baseCost = Number(reward) * Number(slotsTotal);
   const commissionAmount = Math.round(baseCost * COMMISSION_RATES[finalHandlingMode] * 100) / 100;
   const totalCharge = baseCost + commissionAmount;
@@ -90,9 +110,9 @@ export async function POST(request) {
   // Created as a draft, invisible to testers, until Paystack confirms
   // payment via webhook — the campaign never goes live unpaid.
   const campaignResult = await query(
-    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged, success_example_image, success_example_mime)
-     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge, rawImageBase64, rawImageBase64 ? successExampleMime : null]
+    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged, success_example_image, success_example_mime, duration_days, requires_daily_report)
+     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge, rawImageBase64, rawImageBase64 ? successExampleMime : null, finalDurationDays, finalRequiresDailyReport]
   );
   const campaign = campaignResult.rows[0];
 
@@ -100,8 +120,8 @@ export async function POST(request) {
     for (let i = 0; i < screeningQuestions.length; i++) {
       const q = screeningQuestions[i];
       await query(
-        `INSERT INTO screening_questions (campaign_id, sort_order, question_text, question_type, options, qualifying_answers)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO screening_questions (campaign_id, sort_order, question_text, question_type, options, qualifying_answers, purpose)
+         VALUES ($1, $2, $3, $4, $5, $6, 'screening')`,
         [
           campaign.id,
           i,
@@ -109,6 +129,23 @@ export async function POST(request) {
           q.type,
           q.type === 'mc' ? JSON.stringify(q.options) : null,
           q.type === 'mc' ? JSON.stringify(q.qualifying || []) : null,
+        ]
+      );
+    }
+  }
+
+  if (finalRequiresDailyReport && dailyReportQuestions?.length > 0) {
+    for (let i = 0; i < dailyReportQuestions.length; i++) {
+      const q = dailyReportQuestions[i];
+      await query(
+        `INSERT INTO screening_questions (campaign_id, sort_order, question_text, question_type, options, qualifying_answers, purpose)
+         VALUES ($1, $2, $3, $4, $5, NULL, 'daily_report')`,
+        [
+          campaign.id,
+          i,
+          q.questionText,
+          q.type,
+          q.type === 'mc' ? JSON.stringify(q.options) : null,
         ]
       );
     }

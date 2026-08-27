@@ -3,11 +3,30 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function CampaignActions({ campaignId, isDraft }) {
+export default function CampaignActions({ campaignId, isDraft, status, announceRequested, announcedAt, locked = false }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [announceLoading, setAnnounceLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState('');
+
+  async function handleAnnounce() {
+    setAnnounceLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/announce`, { method: 'PATCH' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.');
+        setAnnounceLoading(false);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setError('Could not reach the server. Try again.');
+      setAnnounceLoading(false);
+    }
+  }
 
   async function handleContinuePayment() {
     setLoading(true);
@@ -47,6 +66,23 @@ export default function CampaignActions({ campaignId, isDraft }) {
 
   return (
     <div style={{ marginTop: 12, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      {status === 'open' && (
+        announcedAt ? (
+          <span className="mono" style={{ fontSize: 12, color: 'var(--green)' }}>✅ Announced</span>
+        ) : announceRequested ? (
+          <span className="mono" style={{ fontSize: 12, color: 'var(--amber)' }}>📢 Announcing…</span>
+        ) : (
+          <button
+            onClick={handleAnnounce}
+            disabled={announceLoading}
+            className="mono"
+            style={{ background: 'none', border: 'none', color: 'var(--amber)', fontSize: 12, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+          >
+            {announceLoading ? 'Requesting…' : '📢 Announce to testers'}
+          </button>
+        )
+      )}
+
       <a
         href={`/dashboard/campaigns/${campaignId}/edit`}
         className="mono"
@@ -55,7 +91,7 @@ export default function CampaignActions({ campaignId, isDraft }) {
         {isDraft ? 'Edit draft →' : 'Edit campaign →'}
       </a>
 
-      {isDraft && (
+      {isDraft && !locked && (
         <button
           onClick={handleContinuePayment}
           disabled={loading}
@@ -66,7 +102,7 @@ export default function CampaignActions({ campaignId, isDraft }) {
         </button>
       )}
 
-      {!confirmingDelete ? (
+      {!locked && !confirmingDelete ? (
         <button
           onClick={() => setConfirmingDelete(true)}
           className="mono"

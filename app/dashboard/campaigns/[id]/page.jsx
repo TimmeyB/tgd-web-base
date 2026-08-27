@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import SubmissionReviewActions from './submission-review-actions';
-import AnnounceButton from './announce-button';
 
 const STATUS_STYLES = {
   applied: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'Applied' },
@@ -71,18 +70,6 @@ export default async function CampaignDetailPage({ params }) {
         )}
       </div>
 
-      {campaign.status === 'open' && (
-        <div className="card" style={{ padding: 20, marginBottom: 24 }}>
-          {campaign.announced_at ? (
-            <p style={{ fontSize: 13, color: 'var(--green)' }}>✅ Announced to testers.</p>
-          ) : campaign.announce_requested ? (
-            <p style={{ fontSize: 13, color: 'var(--amber)' }}>📢 Announcement queued — going out shortly.</p>
-          ) : (
-            <AnnounceButton campaignId={campaign.id} />
-          )}
-        </div>
-      )}
-
       {submissions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 48 }}>
           <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>
@@ -103,19 +90,38 @@ export default async function CampaignDetailPage({ params }) {
                 </div>
                 {s.screening_answers && (
                   <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-dim)' }}>
-                    <p style={{ marginBottom: 4 }}>Screening answers:</p>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}>
-                      {JSON.stringify(s.screening_answers, null, 2)}
-                    </pre>
+                    <p style={{ marginBottom: 6 }}>Screening answers:</p>
+                    {Object.entries(s.screening_answers).map(([question, answer]) => (
+                      <div key={question} style={{ marginBottom: 8 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>{question}</p>
+                        {answer && typeof answer === 'object' && answer.telegram_file_id ? (
+                          <img
+                            src={`/api/media/${answer.telegram_file_id}`}
+                            alt="Screening answer"
+                            style={{ maxWidth: 220, maxHeight: 220, borderRadius: 8, border: '1px solid var(--border)' }}
+                          />
+                        ) : (
+                          <p style={{ fontSize: 12 }}>{String(answer)}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
                 {s.proof_text && (
                   <p style={{ marginTop: 10, fontSize: 13, color: 'var(--text-dim)' }}>{s.proof_text}</p>
                 )}
                 {s.proof_url && (
-                  <a href={s.proof_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: 'var(--green)' }}>
-                    View proof →
-                  </a>
+                  s.proof_url.startsWith('http') ? (
+                    <a href={s.proof_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: 'var(--green)' }}>
+                      View proof →
+                    </a>
+                  ) : (
+                    <img
+                      src={`/api/media/${s.proof_url}`}
+                      alt="Submitted proof"
+                      style={{ marginTop: 10, maxWidth: 260, maxHeight: 260, borderRadius: 8, border: '1px solid var(--border)' }}
+                    />
+                  )
                 )}
                 {campaign.handling_mode === 'self' && s.status === 'applied' && (
                   <SubmissionReviewActions submissionId={s.id} />

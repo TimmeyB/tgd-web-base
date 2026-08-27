@@ -22,7 +22,7 @@ export async function GET(request) {
   const campaignsResult = await query(
     `SELECT id, brand_id, title, description, reward, slots_total, slots_filled,
             campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url,
-            announce_requested, announced_at,
+            announce_requested, announced_at, duration_days, requires_daily_report,
             (success_example_image IS NOT NULL) AS has_success_example
      FROM campaigns WHERE status = $1 ORDER BY id DESC`,
     [statusParam]
@@ -38,22 +38,30 @@ export async function GET(request) {
     `SELECT * FROM screening_questions WHERE campaign_id = ANY($1) ORDER BY campaign_id, sort_order`,
     [ids]
   );
-  const questionsByCampaign = {};
+  const screeningByCampaign = {};
+  const dailyReportByCampaign = {};
   for (const q of questionsResult.rows) {
-    if (!questionsByCampaign[q.campaign_id]) questionsByCampaign[q.campaign_id] = [];
     // Translate DB column names to the field names the bot expects, so the
     // bot's sync code doesn't need to know about the web app's actual schema.
-    questionsByCampaign[q.campaign_id].push({
+    const clean = {
       question_text: q.question_text,
       type: q.question_type,
       options: q.options,
       qualifying: q.qualifying_answers,
-    });
+    };
+    if (q.purpose === 'daily_report') {
+      if (!dailyReportByCampaign[q.campaign_id]) dailyReportByCampaign[q.campaign_id] = [];
+      dailyReportByCampaign[q.campaign_id].push(clean);
+    } else {
+      if (!screeningByCampaign[q.campaign_id]) screeningByCampaign[q.campaign_id] = [];
+      screeningByCampaign[q.campaign_id].push(clean);
+    }
   }
 
   const enriched = campaigns.map((c) => ({
     ...c,
-    screeningQuestions: questionsByCampaign[c.id] || [],
+    screeningQuestions: screeningByCampaign[c.id] || [],
+    dailyReportQuestions: dailyReportByCampaign[c.id] || [],
   }));
 
   return NextResponse.json({ campaigns: enriched });
