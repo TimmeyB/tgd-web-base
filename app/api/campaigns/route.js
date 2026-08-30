@@ -48,6 +48,7 @@ export async function POST(request) {
     formUrl,
     durationDays,
     requiresDailyReport,
+    requiresGmailAccess,
     dailyReportQuestions,
   } = await request.json();
 
@@ -88,6 +89,7 @@ export async function POST(request) {
 
   const finalDurationDays = campaignType === 'testing' && Number(durationDays) > 0 ? Number(durationDays) : 0;
   const finalRequiresDailyReport = finalDurationDays > 0 && !!requiresDailyReport;
+  const finalRequiresGmailAccess = finalDurationDays > 0 && !!requiresGmailAccess;
 
   if (finalRequiresDailyReport) {
     if (!Array.isArray(dailyReportQuestions) || dailyReportQuestions.length === 0) {
@@ -110,9 +112,9 @@ export async function POST(request) {
   // Created as a draft, invisible to testers, until Paystack confirms
   // payment via webhook — the campaign never goes live unpaid.
   const campaignResult = await query(
-    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged, success_example_image, success_example_mime, duration_days, requires_daily_report)
-     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge, rawImageBase64, rawImageBase64 ? successExampleMime : null, finalDurationDays, finalRequiresDailyReport]
+    `INSERT INTO campaigns (brand_id, title, description, reward, slots_total, status, campaign_type, handling_mode, screening_mode, screening_pool_cap, form_url, commission_amount, total_charged, success_example_image, success_example_mime, duration_days, requires_daily_report, requires_gmail_access)
+     VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+    [brand.id, title, description, reward, slotsTotal, campaignType, finalHandlingMode, finalScreeningMode, screeningPoolCap || null, formUrl || null, commissionAmount, totalCharge, rawImageBase64, rawImageBase64 ? successExampleMime : null, finalDurationDays, finalRequiresDailyReport, finalRequiresGmailAccess]
   );
   const campaign = campaignResult.rows[0];
 

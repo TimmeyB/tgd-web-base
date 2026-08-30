@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import SubmissionReviewActions from './submission-review-actions';
+import AccessRequestActions from './access-request-actions';
 
 const STATUS_STYLES = {
   applied: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'Applied' },
@@ -28,6 +29,15 @@ export default async function CampaignDetailPage({ params }) {
   );
   const submissions = submissionsResult.rows;
 
+  let pendingAccessRequests = [];
+  if (campaign.requires_gmail_access && campaign.handling_mode === 'self') {
+    const accessResult = await query(
+      "SELECT * FROM access_requests WHERE campaign_id = $1 AND status = 'pending' ORDER BY requested_at ASC",
+      [params.id]
+    );
+    pendingAccessRequests = accessResult.rows;
+  }
+
   const counts = submissions.reduce(
     (acc, s) => {
       acc[s.status] = (acc[s.status] || 0) + 1;
@@ -43,7 +53,27 @@ export default async function CampaignDetailPage({ params }) {
       </a>
       <p className="eyebrow">{campaign.status}</p>
       <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 8 }}>{campaign.title}</h1>
-      <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 28 }}>{campaign.description}</p>
+      <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>{campaign.description}</p>
+
+      {campaign.status === 'open' && (
+        <div
+          className="card"
+          style={{
+            background: 'rgba(62,207,142,0.12)',
+            border: '1px solid var(--green)',
+            padding: 16,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🟢</span>
+          <p style={{ fontSize: 13, color: 'var(--green)', fontWeight: 600 }}>
+            Live now — this campaign is visible to testers on Telegram and can be claimed at any moment.
+          </p>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 20, marginBottom: 24 }}>
         <div className="mono" style={{ display: 'flex', gap: 32, flexWrap: 'wrap', fontSize: 13 }}>
@@ -69,6 +99,26 @@ export default async function CampaignDetailPage({ params }) {
           </div>
         )}
       </div>
+
+      {pendingAccessRequests.length > 0 && (
+        <div className="card" style={{ padding: 20, marginBottom: 24, border: '1px solid var(--amber)' }}>
+          <p className="eyebrow" style={{ marginBottom: 12 }}>Pending beta access requests</p>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+            Approving starts that tester's countdown. Add their email as a tester on your end (Play Console, TestFlight, etc.) before or right after approving.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {pendingAccessRequests.map((req) => (
+              <div key={req.id} style={{ padding: 12, background: 'var(--bg)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                  <span className="mono">{req.tester_handle}</span>
+                  <span className="mono" style={{ color: 'var(--text-dim)' }}>{req.email}</span>
+                </div>
+                <AccessRequestActions requestId={req.id} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {submissions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 48 }}>

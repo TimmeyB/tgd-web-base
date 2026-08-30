@@ -84,6 +84,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
 
   const [durationDays, setDurationDays] = useState('');
   const [requiresDailyReport, setRequiresDailyReport] = useState(false);
+  const [requiresGmailAccess, setRequiresGmailAccess] = useState(false);
   const [dailyReportQuestions, setDailyReportQuestions] = useState([]);
 
   const [error, setError] = useState('');
@@ -124,6 +125,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     setScreeningPoolCap('');
     setDurationDays('');
     setRequiresDailyReport(false);
+    setRequiresGmailAccess(false);
     setDailyReportQuestions([]);
     setError('');
     setNeedsSubscription(false);
@@ -209,6 +211,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
           : [],
       durationDays: campaignType === 'testing' && durationDays ? Number(durationDays) : 0,
       requiresDailyReport: campaignType === 'testing' && Number(durationDays) > 0 ? requiresDailyReport : false,
+      requiresGmailAccess: campaignType === 'testing' && Number(durationDays) > 0 ? requiresGmailAccess : false,
       dailyReportQuestions:
         campaignType === 'testing' && Number(durationDays) > 0 && requiresDailyReport
           ? dailyReportQuestions.map((q) => ({
@@ -258,9 +261,26 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
         </a>
         <p className="eyebrow">New campaign</p>
         <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 8 }}>What kind of campaign is this?</h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 28 }}>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>
           Pick a type — testers only see campaigns that match what they're good at.
         </p>
+        <div
+          className="card"
+          style={{
+            background: 'rgba(62,207,142,0.12)',
+            border: '1px solid var(--green)',
+            padding: 14,
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>⚡</span>
+          <p style={{ fontSize: 13, color: 'var(--green)' }}>
+            This isn't just a listing — once launched, real testers on Telegram can see and claim your campaign in under 2 minutes.
+          </p>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {CAMPAIGN_TYPES.map((t) => (
             <button
@@ -484,6 +504,20 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
                     Payment only happens after the tester completes the full {durationDays} day{Number(durationDays) === 1 ? '' : 's'} and submits final proof — no partial payment for partial completion. This is shown to testers before they start.
                   </p>
                 </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={requiresGmailAccess}
+                    onChange={(e) => setRequiresGmailAccess(e.target.checked)}
+                  />
+                  Require Gmail for closed beta invite (e.g. Play Store closed testing)
+                </label>
+                {requiresGmailAccess && (
+                  <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 16 }}>
+                    Testers submit their Gmail before starting. You approve or reject each one — approving starts their countdown, rejecting removes the task from their list. You're responsible for actually adding approved emails as testers on your end (Play Console, TestFlight, etc.) — TaskGrind can't do that part for you.
+                  </p>
+                )}
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginBottom: 12, cursor: 'pointer' }}>
                   <input
