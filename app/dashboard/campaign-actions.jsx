@@ -7,8 +7,33 @@ export default function CampaignActions({ campaignId, isDraft, status, announceR
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [announceLoading, setAnnounceLoading] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState('');
+
+  const canArchive = ['draft', 'closed', 'rejected'].includes(status);
+
+  async function handleArchive() {
+    setArchiveLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/archive`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Could not archive this campaign.');
+        setArchiveLoading(false);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setError('Could not reach the server. Try again.');
+      setArchiveLoading(false);
+    }
+  }
 
   async function handleAnnounce() {
     setAnnounceLoading(true);
@@ -99,6 +124,17 @@ export default function CampaignActions({ campaignId, isDraft, status, announceR
           style={{ background: 'none', border: 'none', color: 'var(--amber)', fontSize: 12, cursor: 'pointer', padding: 0 }}
         >
           {loading ? 'Redirecting…' : 'Continue to payment →'}
+        </button>
+      )}
+
+      {canArchive && (
+        <button
+          onClick={handleArchive}
+          disabled={archiveLoading}
+          className="mono"
+          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+        >
+          {archiveLoading ? 'Archiving…' : '🗂 Archive'}
         </button>
       )}
 

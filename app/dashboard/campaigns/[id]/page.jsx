@@ -173,10 +173,13 @@ export default async function CampaignDetailPage({ params }) {
                     />
                   )
                 )}
-                {campaign.handling_mode === 'self' && s.status === 'applied' && (campaign.duration_days === 0 || s.proof_url) && (
+                {campaign.handling_mode === 'self' && s.status === 'applied' && s.stage === 'screening' && (
+                  <SubmissionReviewActions submissionId={s.id} screeningOnly />
+                )}
+                {campaign.handling_mode === 'self' && s.status === 'applied' && s.stage !== 'screening' && (campaign.duration_days === 0 || s.proof_url) && (
                   <SubmissionReviewActions submissionId={s.id} />
                 )}
-                {campaign.duration_days > 0 && s.status === 'applied' && !s.proof_url && (
+                {campaign.duration_days > 0 && s.status === 'applied' && s.stage !== 'screening' && !s.proof_url && (
                   <p style={{ marginTop: 10, fontSize: 12, color: 'var(--amber)' }}>
                     🕐 Beta test in progress — final proof lands here on day {campaign.duration_days}.
                   </p>

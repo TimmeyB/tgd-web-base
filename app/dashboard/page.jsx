@@ -29,10 +29,16 @@ export default async function DashboardPage() {
   const isActive = brandResult.rows[0]?.subscription_status === 'active';
 
   const result = await query(
-    'SELECT * FROM campaigns WHERE brand_id = $1 ORDER BY created_at DESC',
+    'SELECT * FROM campaigns WHERE brand_id = $1 AND archived_at IS NULL ORDER BY created_at DESC',
     [session.brandId]
   );
   const campaigns = result.rows;
+
+  const archivedCountResult = await query(
+    'SELECT COUNT(*) AS count FROM campaigns WHERE brand_id = $1 AND archived_at IS NOT NULL',
+    [session.brandId]
+  );
+  const archivedCount = Number(archivedCountResult.rows[0]?.count || 0);
 
   return (
     <div className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
@@ -43,6 +49,11 @@ export default async function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <a href="/dashboard/new-campaign" className="btn btn-primary">New campaign</a>
+          {archivedCount > 0 && (
+            <a href="/dashboard/archive" className="mono" style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+              🗂 Archive ({archivedCount})
+            </a>
+          )}
           <LogoutButton />
         </div>
       </div>

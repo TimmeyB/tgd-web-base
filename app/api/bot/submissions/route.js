@@ -15,7 +15,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Not authorized.' }, { status: 401 });
   }
 
-  const { campaignId, testerHandle, status, screeningAnswers, proofText, proofUrl, ackDecision } = await request.json();
+  const { campaignId, testerHandle, status, screeningAnswers, proofText, proofUrl, ackDecision, stage } = await request.json();
 
   if (!campaignId || !testerHandle || !status) {
     return NextResponse.json({ error: 'campaignId, testerHandle, and status are required.' }, { status: 400 });
@@ -47,22 +47,23 @@ export async function POST(request) {
       `UPDATE submissions
        SET status = $1, screening_answers = COALESCE($2, screening_answers),
            proof_text = COALESCE($3, proof_text), proof_url = COALESCE($4, proof_url),
+           stage = COALESCE($6, stage),
            reviewed_at = CASE WHEN $1 IN ('approved', 'rejected') THEN now() ELSE reviewed_at END,
            completed_at = CASE WHEN $1 = 'completed' THEN now() ELSE completed_at END,
            bot_notified_at = ${notifiedClause}
        WHERE id = $5 RETURNING *`,
-      [status, screeningAnswers ? JSON.stringify(screeningAnswers) : null, proofText || null, proofUrl || null, existing.id]
+      [status, screeningAnswers ? JSON.stringify(screeningAnswers) : null, proofText || null, proofUrl || null, existing.id, stage || null]
     );
     submission = updateResult.rows[0];
   } else {
     const insertResult = await query(
-      `INSERT INTO submissions (campaign_id, tester_handle, status, screening_answers, proof_text, proof_url, reviewed_at, completed_at, bot_notified_at)
-       VALUES ($1, $2, $3, $4, $5, $6,
+      `INSERT INTO submissions (campaign_id, tester_handle, status, screening_answers, proof_text, proof_url, stage, reviewed_at, completed_at, bot_notified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7,
                CASE WHEN $3 IN ('approved', 'rejected') THEN now() ELSE NULL END,
                CASE WHEN $3 = 'completed' THEN now() ELSE NULL END,
                ${ackDecision ? 'now()' : 'NULL'})
        RETURNING *`,
-      [campaignId, testerHandle, status, screeningAnswers ? JSON.stringify(screeningAnswers) : null, proofText || null, proofUrl || null]
+      [campaignId, testerHandle, status, screeningAnswers ? JSON.stringify(screeningAnswers) : null, proofText || null, proofUrl || null, stage || 'task']
     );
     submission = insertResult.rows[0];
   }
