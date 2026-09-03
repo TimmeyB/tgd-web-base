@@ -60,10 +60,12 @@ export async function POST(request) {
         [reference, newStatus, metadata.campaignId]
       );
       // New campaign just went live (or into admin review) — let the bot
-      // know now instead of waiting up to its backup interval. Not
-      // awaited: Paystack expects a fast response and pingBot already
-      // fails silently on its own.
-      pingBot();
+      // know now instead of waiting up to its backup interval. This is
+      // awaited deliberately: Vercel can freeze a serverless function the
+      // instant it sends its response, so un-awaited work here isn't
+      // guaranteed to actually run. pingBot() has its own short timeout
+      // and never throws, so this stays fast and safe either way.
+      await pingBot();
     }
 
     if (purpose === 'campaign_edit') {

@@ -28,6 +28,6 @@ export async function PATCH(request, { params }) {
     `UPDATE campaigns SET announce_requested = true WHERE id = $1 RETURNING *`,
     [campaign.id]
   );
-  pingBot();
+  await pingBot(); // awaited — Vercel can freeze the function right after the response is sent, so this can't be fire-and-forget
   return NextResponse.json({ campaign: updateResult.rows[0] });
 }

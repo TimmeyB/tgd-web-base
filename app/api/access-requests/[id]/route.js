@@ -39,6 +39,6 @@ export async function PATCH(request, { params }) {
     `UPDATE access_requests SET status = $1, decided_at = now() WHERE id = $2 RETURNING *`,
     [newStatus, accessRequest.id]
   );
-  pingBot();
+  await pingBot(); // awaited — Vercel can freeze the function right after the response is sent
   return NextResponse.json({ accessRequest: updateResult.rows[0] });
 }

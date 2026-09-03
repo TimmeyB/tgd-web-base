@@ -40,7 +40,7 @@ export async function PATCH(request, { params }) {
     `UPDATE submissions SET status = $1, reviewed_at = now() WHERE id = $2 RETURNING *`,
     [newStatus, submission.id]
   );
-  pingBot();
+  await pingBot(); // awaited — Vercel can freeze the function right after the response is sent
 
   return NextResponse.json({ submission: updateResult.rows[0] });
 }
