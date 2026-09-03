@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import { pingBot } from '@/lib/bot-sync';
 
 export async function PATCH(request, { params }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -21,11 +22,12 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'This campaign has already been announced (or is about to be).' }, { status: 400 });
   }
 
-  // Just flips a flag — the bot's polling loop picks this up and does the
-  // actual broadcast next cycle (within ~2 minutes), then reports back.
+  // Flips a flag, then pings the bot so it broadcasts within seconds
+  // instead of waiting on its backup timer.
   const updateResult = await query(
     `UPDATE campaigns SET announce_requested = true WHERE id = $1 RETURNING *`,
     [campaign.id]
   );
+  pingBot();
   return NextResponse.json({ campaign: updateResult.rows[0] });
 }

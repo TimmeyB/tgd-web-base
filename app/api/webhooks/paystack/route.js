@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { pingBot } from '@/lib/bot-sync';
 
 // Paystack signs every webhook with your secret key so you can trust it's
 // really them and not someone spoofing a "payment succeeded" call.
@@ -58,6 +59,11 @@ export async function POST(request) {
         `UPDATE campaigns SET payment_status = 'paid', paystack_reference = $1, status = $2 WHERE id = $3`,
         [reference, newStatus, metadata.campaignId]
       );
+      // New campaign just went live (or into admin review) — let the bot
+      // know now instead of waiting up to its backup interval. Not
+      // awaited: Paystack expects a fast response and pingBot already
+      // fails silently on its own.
+      pingBot();
     }
 
     if (purpose === 'campaign_edit') {

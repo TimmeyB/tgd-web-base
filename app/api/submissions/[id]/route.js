@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import { pingBot } from '@/lib/bot-sync';
 
 export async function PATCH(request, { params }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -31,14 +32,15 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'This submission has already been reviewed.' }, { status: 400 });
   }
 
-  // Only marks the decision — the bot polls for it, actually pays the
-  // tester on its own rail, and reports back 'completed' once done. This
-  // is a decision, not a payout.
+  // Marks the decision, then pings the bot so it acts on it within
+  // seconds — actually pays the tester on its own rail and reports back
+  // 'completed' once done. This route only records the decision itself.
   const newStatus = decision === 'approve' ? 'approved' : 'rejected';
   const updateResult = await query(
     `UPDATE submissions SET status = $1, reviewed_at = now() WHERE id = $2 RETURNING *`,
     [newStatus, submission.id]
   );
+  pingBot();
 
   return NextResponse.json({ submission: updateResult.rows[0] });
 }

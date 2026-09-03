@@ -7,6 +7,12 @@ import QuestionBuilder from './question-builder';
 
 const CAMPAIGN_TYPES = [
   {
+    id: 'testing',
+    icon: '🧪',
+    label: 'Testing',
+    desc: 'Real product testing, with a screening survey to qualify testers first.',
+  },
+  {
     id: 'engagement',
     icon: '💬',
     label: 'Engagement',
@@ -23,12 +29,6 @@ const CAMPAIGN_TYPES = [
     icon: '⭐',
     label: 'Reviews',
     desc: 'Real users try your product and share honest, first-hand feedback on your listing.',
-  },
-  {
-    id: 'testing',
-    icon: '🧪',
-    label: 'Testing',
-    desc: 'Real product testing, with a screening survey to qualify testers first.',
   },
   {
     id: 'survey',
@@ -281,26 +281,62 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
             This isn't just a listing — once launched, real testers on Telegram can see and claim your campaign in under 2 minutes.
           </p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {CAMPAIGN_TYPES.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => selectType(t.id)}
-              className="card"
-              style={{
-                textAlign: 'left',
-                cursor: 'pointer',
-                padding: 20,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-raised)',
-              }}
-            >
-              <div style={{ fontSize: 26, marginBottom: 10 }}>{t.icon}</div>
-              <h3 style={{ fontSize: 16, marginBottom: 6 }}>{t.label}</h3>
-              <p style={{ color: 'var(--text-dim)', fontSize: 13, lineHeight: 1.4 }}>{t.desc}</p>
-            </button>
-          ))}
-        </div>
+        {(() => {
+          const featured = CAMPAIGN_TYPES.find((t) => t.id === 'testing');
+          const others = CAMPAIGN_TYPES.filter((t) => t.id !== 'testing');
+          return (
+            <>
+              <button
+                onClick={() => selectType(featured.id)}
+                className="card"
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  padding: 24,
+                  border: '1px solid var(--green)',
+                  background: 'rgba(62,207,142,0.08)',
+                  marginBottom: 24,
+                }}
+              >
+                <p className="eyebrow" style={{ marginBottom: 8 }}>What TaskGrind is built for</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div style={{ fontSize: 34 }}>{featured.icon}</div>
+                  <div>
+                    <h3 style={{ fontSize: 19, marginBottom: 6 }}>{featured.label}</h3>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 14, lineHeight: 1.5 }}>{featured.desc}</p>
+                  </div>
+                </div>
+              </button>
+
+              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Other campaign types
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+                {others.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => selectType(t.id)}
+                    className="card"
+                    style={{
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      padding: 14,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-raised)',
+                      opacity: 0.75,
+                    }}
+                  >
+                    <div style={{ fontSize: 18, marginBottom: 6 }}>{t.icon}</div>
+                    <h3 style={{ fontSize: 13, marginBottom: 4 }}>{t.label}</h3>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.35 }}>{t.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </>
+          );
+        })()}
       </div>
     );
   }

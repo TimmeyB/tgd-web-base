@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import { pingBot } from '@/lib/bot-sync';
 
 export async function PATCH(request, { params }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -31,12 +32,13 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'This request has already been decided.' }, { status: 400 });
   }
 
-  // Only records the decision — the bot polls for it and actually starts
-  // the tester's countdown once it picks this up.
+  // Records the decision, then pings the bot so it starts the tester's
+  // countdown within seconds instead of on its next backup poll.
   const newStatus = decision === 'approve' ? 'approved' : 'rejected';
   const updateResult = await query(
     `UPDATE access_requests SET status = $1, decided_at = now() WHERE id = $2 RETURNING *`,
     [newStatus, accessRequest.id]
   );
+  pingBot();
   return NextResponse.json({ accessRequest: updateResult.rows[0] });
 }
