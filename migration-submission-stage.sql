@@ -18,3 +18,17 @@ ALTER TABLE submissions ADD COLUMN IF NOT EXISTS stage TEXT DEFAULT 'task';
 -- dashboard as normal; a timestamp = archived, only shown on /dashboard/archive.
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
 
+-- Password reset. Tokens are stored hashed (never plaintext) so a leaked
+-- database still can't be used to reset anyone's password. 1-hour expiry,
+-- single use — used_at gets set the moment it's redeemed.
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id SERIAL PRIMARY KEY,
+  brand_id INTEGER NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_brand_id ON password_reset_tokens(brand_id);
+
+

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
+import { pingBot } from '@/lib/bot-sync';
 
 const COMMISSION_RATES = { self: 0.10, admin: 0.13 };
 
@@ -35,7 +36,11 @@ export async function PATCH(request, { params }) {
 
   // Once a tester has accepted a slot, the terms they saw when they signed
   // up shouldn't move under them — lock the campaign at that point.
-  if (campaign.slots_filled > 0) {
+  // slots_filled alone isn't enough to check: it only increments once
+  // someone's fully paid out, so a tester mid-screening or mid-task
+  // wouldn't be caught by that check alone.
+  const applicantCheck = await query('SELECT 1 FROM submissions WHERE campaign_id = $1 LIMIT 1', [campaign.id]);
+  if (campaign.slots_filled > 0 || applicantCheck.rows.length > 0) {
     return NextResponse.json(
       { error: 'This campaign already has testers in progress, so it can no longer be edited.' },
       { status: 403 }
@@ -134,8 +139,10 @@ export async function DELETE(request, { params }) {
   if (!campaign) return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
 
   // Same protection as editing — once a tester has accepted a slot, the
-  // campaign can't just vanish on them.
-  if (campaign.slots_filled > 0) {
+  // campaign can't just vanish on them. Same fix as above: check for any
+  // submission at all, not just completed/paid ones.
+  const applicantCheck = await query('SELECT 1 FROM submissions WHERE campaign_id = $1 LIMIT 1', [campaign.id]);
+  if (campaign.slots_filled > 0 || applicantCheck.rows.length > 0) {
     return NextResponse.json(
       { error: 'This campaign already has testers in progress, so it can no longer be deleted.' },
       { status: 403 }
@@ -143,5 +150,8 @@ export async function DELETE(request, { params }) {
   }
 
   await query('DELETE FROM campaigns WHERE id = $1', [campaign.id]);
+  // If this was live and synced to the bot already, it needs to hear about
+  // the deletion now — not up to 3 hours from now on its backup timer.
+  await pingBot();
   return NextResponse.json({ deleted: true });
 }

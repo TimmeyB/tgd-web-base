@@ -81,6 +81,7 @@ button, input {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
+  min-width: 0; /* lets flex children actually shrink instead of overflowing on narrow screens */
 }
 
 .field label {
@@ -96,6 +97,7 @@ button, input {
   padding: 10px 12px;
   color: var(--text);
   font-size: 15px;
+  width: 100%;
 }
 
 .field input:focus, .field textarea:focus {

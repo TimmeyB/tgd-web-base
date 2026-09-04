@@ -54,6 +54,9 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <a href="/forgot-password" style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 6, display: 'inline-block' }}>
+              Forgot password?
+            </a>
           </div>
           {error && <p className="error-text">{error}</p>}
           <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: 8 }}>
