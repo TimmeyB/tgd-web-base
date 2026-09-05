@@ -111,6 +111,15 @@ export async function POST(request) {
     );
   }
 
+  // Transfers (tester payouts) aren't always instant, so Paystack tells us
+  // the outcome here rather than us having to guess. The bot owns all
+  // withdrawal state in its own database, so there's nothing to update on
+  // this side — just wake it up immediately so it checks and finalizes
+  // instead of waiting on its backup poll.
+  if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(event.event)) {
+    await pingBot();
+  }
+
   // Paystack expects a fast 200 response — do nothing slow above this line.
   return NextResponse.json({ received: true });
 }
