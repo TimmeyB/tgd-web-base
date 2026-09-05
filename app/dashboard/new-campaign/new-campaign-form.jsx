@@ -63,6 +63,44 @@ function suggestedRangeFor(campaignType, screeningMode) {
   return SUGGESTED_RANGE[campaignType] || null;
 }
 
+const FIELD_LABELS = {
+  testing: {
+    titlePlaceholder: 'e.g. Test our new onboarding flow',
+    descriptionLabel: 'Instructions for testers',
+    descriptionPlaceholder: 'What should the tester actually do, step by step?',
+    rewardLabel: 'Pay per completed test ($)',
+    slotsLabel: 'Number of testers',
+  },
+  engagement: {
+    titlePlaceholder: 'e.g. Boost our launch announcement',
+    descriptionLabel: 'Instructions for participants',
+    descriptionPlaceholder: 'What should people actually do — like, comment, repost, follow? Be specific, and link the post.',
+    rewardLabel: 'Pay per person ($)',
+    slotsLabel: 'Set a goal for likes, comments & reposts',
+  },
+  upvote: {
+    titlePlaceholder: 'e.g. Upvote us on Product Hunt',
+    descriptionLabel: 'Instructions for upvoters',
+    descriptionPlaceholder: 'Where should people upvote, and anything they should know before they do?',
+    rewardLabel: 'Pay per upvote ($)',
+    slotsLabel: 'Number of upvoters',
+  },
+  review: {
+    titlePlaceholder: 'e.g. Leave a review on our Play Store listing',
+    descriptionLabel: 'Instructions for reviewers',
+    descriptionPlaceholder: 'What should the review cover, and where should people leave it?',
+    rewardLabel: 'Pay per review ($)',
+    slotsLabel: 'Number of reviewers',
+  },
+  survey: {
+    titlePlaceholder: 'e.g. Fill out our product-market fit survey',
+    descriptionLabel: 'Instructions for respondents',
+    descriptionPlaceholder: 'What should respondents know before they start the survey?',
+    rewardLabel: 'Pay per response ($)',
+    slotsLabel: 'Number of respondents',
+  },
+};
+
 export default function NewCampaignForm({ subscriptionActive = false }) {
   const router = useRouter();
   const [step, setStep] = useState('type'); // 'type' | 'form'
@@ -342,6 +380,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   }
 
   const selectedType = CAMPAIGN_TYPES.find((t) => t.id === campaignType);
+  const labels = FIELD_LABELS[campaignType] || FIELD_LABELS.testing;
 
   return (
     <div className="container" style={{ maxWidth: 560, paddingTop: 48, paddingBottom: 80 }}>
@@ -362,16 +401,16 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       <form onSubmit={handleSubmit} className="card">
         <div className="field">
           <label htmlFor="title">Title</label>
-          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Test our new onboarding flow" required />
+          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={labels.titlePlaceholder} required />
         </div>
         <div className="field">
-          <label htmlFor="description">Instructions for testers</label>
+          <label htmlFor="description">{labels.descriptionLabel}</label>
           <textarea
             id="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            placeholder="What should the tester actually do, step by step?"
+            placeholder={labels.descriptionPlaceholder}
             required
           />
         </div>
@@ -428,7 +467,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
 
         <div style={{ display: 'flex', gap: 16 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label htmlFor="reward">Reward per completion ($)</label>
+            <label htmlFor="reward">{labels.rewardLabel}</label>
             <input id="reward" type="number" step="0.01" min="0.01" value={reward} onChange={(e) => setReward(e.target.value)} required />
             {(() => {
               const range = suggestedRangeFor(campaignType, screeningMode);
@@ -445,7 +484,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
             })()}
           </div>
           <div className="field" style={{ flex: 1 }}>
-            <label htmlFor="slotsTotal">Number of testers</label>
+            <label htmlFor="slotsTotal">{labels.slotsLabel}</label>
             <input id="slotsTotal" type="number" min="1" value={slotsTotal} onChange={(e) => setSlotsTotal(e.target.value)} required />
           </div>
         </div>
