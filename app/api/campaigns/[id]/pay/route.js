@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
+import { getUsdToNgnRate } from '@/lib/exchange-rate';
 
 export async function POST(request, { params }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -27,9 +28,9 @@ export async function POST(request, { params }) {
   // Uses whatever reward/slots are currently saved on the campaign — if the
   // brand edited them since the last abandoned attempt, this charges the
   // up-to-date amount, not the stale one from the original creation.
-  const rate = Number(process.env.PAYSTACK_USD_TO_NGN_RATE || 0);
+  const rate = await getUsdToNgnRate();
   if (!rate) {
-    return NextResponse.json({ error: 'Payment pricing not configured yet.' }, { status: 500 });
+    return NextResponse.json({ error: 'Payment pricing not available right now.' }, { status: 500 });
   }
   const totalCharge = Number(campaign.total_charged);
   const amountNaira = totalCharge * rate;

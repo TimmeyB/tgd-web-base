@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { initializeTransaction } from '@/lib/paystack';
 import { pingBot } from '@/lib/bot-sync';
+import { getUsdToNgnRate } from '@/lib/exchange-rate';
 
 const COMMISSION_RATES = { self: 0.10, admin: 0.13 };
 
@@ -107,9 +108,9 @@ export async function PATCH(request, { params }) {
   // Raising the budget needs a real payment for the difference before it
   // takes effect — hold the requested changes until Paystack confirms.
   const deltaUsd = newTotal - alreadyPaid;
-  const rate = Number(process.env.PAYSTACK_USD_TO_NGN_RATE || 0);
+  const rate = await getUsdToNgnRate();
   if (!rate) {
-    return NextResponse.json({ error: 'Payment pricing not configured yet.' }, { status: 500 });
+    return NextResponse.json({ error: 'Payment pricing not available right now.' }, { status: 500 });
   }
   const amountNaira = deltaUsd * rate;
   const reference = `campedit_${campaign.id}_${Date.now()}`;
