@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import SubmissionReviewActions from './submission-review-actions';
 import AccessRequestActions from './access-request-actions';
+import SubmissionChat from './submission-chat';
 
 const STATUS_STYLES = {
   applied: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)', label: 'Applied' },
@@ -184,6 +185,7 @@ export default async function CampaignDetailPage({ params }) {
                     🕐 Beta test in progress — final proof lands here on day {campaign.duration_days}.
                   </p>
                 )}
+                {campaign.handling_mode === 'self' && <SubmissionChat submissionId={s.id} />}
               </div>
             );
           })}
