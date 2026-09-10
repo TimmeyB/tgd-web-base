@@ -31,4 +31,34 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_brand_id ON password_reset_tokens(brand_id);
 
+-- Lets a brand message a specific tester about their submission when
+-- feedback is unclear, without ever seeing the tester's actual Telegram
+-- identity — everything routes through the bot as a relay. delivered_at
+-- tracks whether the bot has actually handed a brand message to the
+-- tester yet (NULL = still waiting for the bot to pick it up).
+CREATE TABLE IF NOT EXISTS messages (
+  id SERIAL PRIMARY KEY,
+  submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+  sender TEXT NOT NULL, -- 'brand' | 'tester'
+  body TEXT NOT NULL,
+  delivered_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_messages_submission_id ON messages(submission_id);
+
+-- Marks a brand account as a platform admin — lets that one account see
+-- an /admin view of everything happening across every brand, not just
+-- their own campaigns. Nobody has this by default; you flip it on
+-- yourself with a one-off UPDATE, same as the subscription gift below.
+ALTER TABLE brands ADD COLUMN IF NOT EXISTS is_platform_admin BOOLEAN DEFAULT false;
+
+-- Lets a brand pin daily check-ins to a specific hour instead of them
+-- firing whenever the bot's hourly poll happens to notice a new day
+-- started. NULL means "no fixed hour" — each tester's own claim-start
+-- hour is used instead, so it isn't a total guess even when unset.
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS daily_report_hour INTEGER;
+
+
+
+
 

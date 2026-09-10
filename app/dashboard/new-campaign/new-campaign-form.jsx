@@ -121,6 +121,7 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [questions, setQuestions] = useState([]);
 
   const [durationDays, setDurationDays] = useState('');
+  const [dailyReportTime, setDailyReportTime] = useState('');
   const [requiresDailyReport, setRequiresDailyReport] = useState(false);
   const [requiresGmailAccess, setRequiresGmailAccess] = useState(false);
   const [dailyReportQuestions, setDailyReportQuestions] = useState([]);
@@ -250,6 +251,18 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
       durationDays: campaignType === 'testing' && durationDays ? Number(durationDays) : 0,
       requiresDailyReport: campaignType === 'testing' && Number(durationDays) > 0 ? requiresDailyReport : false,
       requiresGmailAccess: campaignType === 'testing' && Number(durationDays) > 0 ? requiresGmailAccess : false,
+      // Converted from the brand's own local time to a UTC hour here —
+      // the server and bot only ever think in UTC, so this is the one
+      // place that needs to know what timezone the brand is actually in.
+      dailyReportHour:
+        campaignType === 'testing' && Number(durationDays) > 0 && dailyReportTime
+          ? (() => {
+              const [h, m] = dailyReportTime.split(':').map(Number);
+              const local = new Date();
+              local.setHours(h, m, 0, 0);
+              return local.getUTCHours();
+            })()
+          : null,
       dailyReportQuestions:
         campaignType === 'testing' && Number(durationDays) > 0 && requiresDailyReport
           ? dailyReportQuestions.map((q) => ({
@@ -577,6 +590,19 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
                 <div className="card" style={{ background: 'rgba(217,164,65,0.1)', border: '1px solid var(--amber)', padding: 14, marginBottom: 12 }}>
                   <p style={{ fontSize: 13, color: 'var(--amber)' }}>
                     Payment only happens after the tester completes the full {durationDays} day{Number(durationDays) === 1 ? '' : 's'} and submits final proof — no partial payment for partial completion. This is shown to testers before they start.
+                  </p>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="dailyReportTime">Daily check-in time (optional)</label>
+                  <input
+                    id="dailyReportTime"
+                    type="time"
+                    value={dailyReportTime}
+                    onChange={(e) => setDailyReportTime(e.target.value)}
+                  />
+                  <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
+                    Pick a time and every tester gets asked around then each day, in your local time. Leave blank and each tester is just asked at whatever hour they originally started — still consistent day to day, just not synced to a specific time.
                   </p>
                 </div>
 
