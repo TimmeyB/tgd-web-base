@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { pingBot } from '@/lib/bot-sync';
+import { recordWalletTransaction } from '@/lib/wallet';
 
 // Paystack signs every webhook with your secret key so you can trust it's
 // really them and not someone spoofing a "payment succeeded" call.
@@ -66,6 +67,13 @@ export async function POST(request) {
       // guaranteed to actually run. pingBot() has its own short timeout
       // and never throws, so this stays fast and safe either way.
       await pingBot();
+    }
+
+    if (purpose === 'wallet_topup') {
+      // amountUsd comes from metadata we set ourselves at initiate time —
+      // trustworthy because the client never controls it, only the
+      // server did when the checkout was created.
+      await recordWalletTransaction(metadata.brandId, metadata.amountUsd, `topup:${reference}`);
     }
 
     if (purpose === 'campaign_edit') {

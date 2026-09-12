@@ -71,6 +71,24 @@ export default function CampaignActions({ campaignId, isDraft, status, announceR
     }
   }
 
+  async function handlePayWithWallet() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/pay-with-wallet`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Could not launch with wallet balance.');
+        setLoading(false);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setError('Could not reach the server. Try again.');
+      setLoading(false);
+    }
+  }
+
   async function handleDelete() {
     setLoading(true);
     setError('');
@@ -124,6 +142,17 @@ export default function CampaignActions({ campaignId, isDraft, status, announceR
           style={{ background: 'none', border: 'none', color: 'var(--amber)', fontSize: 12, cursor: 'pointer', padding: 0 }}
         >
           {loading ? 'Redirecting…' : 'Continue to payment →'}
+        </button>
+      )}
+
+      {isDraft && !locked && (
+        <button
+          onClick={handlePayWithWallet}
+          disabled={loading}
+          className="mono"
+          style={{ background: 'none', border: 'none', color: 'var(--green)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+        >
+          {loading ? 'Launching…' : 'Or pay with wallet balance →'}
         </button>
       )}
 

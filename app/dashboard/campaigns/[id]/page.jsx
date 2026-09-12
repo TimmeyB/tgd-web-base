@@ -52,7 +52,9 @@ export default async function CampaignDetailPage({ params }) {
       <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
         ← Back to dashboard
       </a>
-      <p className="eyebrow">{campaign.status}</p>
+      <p className="eyebrow">
+        {campaign.created_via === 'agent' && campaign.status === 'pending_review' ? 'processing' : campaign.status}
+      </p>
       <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 8 }}>{campaign.title}</h1>
       <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>{campaign.description}</p>
 

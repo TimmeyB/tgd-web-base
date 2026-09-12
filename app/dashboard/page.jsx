@@ -54,6 +54,12 @@ export default async function DashboardPage() {
               🗂 Archive ({archivedCount})
             </a>
           )}
+          <a href="/dashboard/wallet" className="mono" style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+            💳 Wallet
+          </a>
+          <a href="/dashboard/api-keys" className="mono" style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+            🔑 API keys
+          </a>
           <LogoutButton />
         </div>
       </div>
@@ -107,7 +113,7 @@ export default async function DashboardPage() {
                     color: STATUS_BADGE[c.status]?.color || 'var(--text-dim)',
                   }}
                 >
-                  {STATUS_BADGE[c.status]?.label || c.status}
+                  {c.created_via === 'agent' && c.status === 'pending_review' ? 'processing' : (STATUS_BADGE[c.status]?.label || c.status)}
                 </span>
               </div>
               <div className="mono" style={{ marginTop: 16, display: 'flex', gap: 24, alignItems: 'center', fontSize: 13, color: 'var(--text-dim)' }}>
