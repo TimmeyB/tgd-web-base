@@ -28,9 +28,7 @@ export default function PrivacyPage() {
         <h3 style={{ color: 'var(--text)', marginTop: 24, marginBottom: 8 }}>Security</h3>
         <p>Passwords are hashed, API keys are hashed, and login attempts are rate-limited. No system is perfectly secure, but we take reasonable steps to protect account data.</p>
 
-        <p style={{ marginTop: 32, padding: 12, background: 'rgba(217,164,65,0.1)', border: '1px solid var(--amber)', borderRadius: 8, color: 'var(--amber)', fontSize: 12 }}>
-          This is a working draft, not reviewed by a lawyer. Treat it as a starting point, not a finished legal document.
-        </p>
+      
       </div>
     </div>
   );
