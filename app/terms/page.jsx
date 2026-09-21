@@ -35,9 +35,7 @@ export default function TermsPage() {
         <h3 style={{ color: 'var(--text)', marginTop: 24, marginBottom: 8 }}>9. Contact</h3>
         <p>Questions about these terms: reach out via the support contact listed on the dashboard.</p>
 
-        <p style={{ marginTop: 32, padding: 12, background: 'rgba(217,164,65,0.1)', border: '1px solid var(--amber)', borderRadius: 8, color: 'var(--amber)', fontSize: 12 }}>
-          This is a working draft, not reviewed by a lawyer. Treat it as a starting point, not a finished legal document.
-        </p>
+      
       </div>
     </div>
   );
