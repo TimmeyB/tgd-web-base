@@ -29,5 +29,12 @@ export async function POST(request) {
     callbackUrl: `${new URL(request.url).origin}/payment/callback`,
   });
 
+  // Logged before we even know the outcome — if this row is still
+  // 'initiated' later, checkout was either abandoned or declined.
+  await query(
+    `INSERT INTO subscription_attempts (brand_id, reference, status) VALUES ($1, $2, 'initiated')`,
+    [brand.id, reference]
+  );
+
   return NextResponse.json({ authorizationUrl: tx.authorization_url });
 }

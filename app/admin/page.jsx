@@ -1,32 +1,11 @@
-import { cookies } from 'next/headers';
-import { notFound } from 'next/navigation';
 import { query } from '@/lib/db';
-import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
-
-const STATUS_STYLES = {
-  open: { bg: 'rgba(62,207,142,0.15)', color: 'var(--green)' },
-  draft: { bg: 'rgba(138,144,156,0.15)', color: 'var(--text-dim)' },
-  pending_review: { bg: 'rgba(217,164,65,0.15)', color: 'var(--amber)' },
-  closed: { bg: 'rgba(138,144,156,0.15)', color: 'var(--text-dim)' },
-  rejected: { bg: 'rgba(220,80,80,0.15)', color: 'var(--danger)' },
-};
+import { requirePlatformAdmin } from '@/lib/admin-auth';
+import AdminNav from './admin-nav';
 
 export default async function AdminPage() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySessionToken(token) : null;
-  if (!session) return notFound();
+  await requirePlatformAdmin();
 
-  const brandCheck = await query('SELECT is_platform_admin FROM brands WHERE id = $1', [session.brandId]);
-  if (!brandCheck.rows[0]?.is_platform_admin) return notFound();
-
-  const [brandsResult, campaignsResult, statsResult] = await Promise.all([
-    query('SELECT id, company_name, email, subscription_status, created_at FROM brands ORDER BY created_at DESC LIMIT 50'),
-    query(`
-      SELECT c.id, c.title, c.campaign_type, c.status, c.reward, c.slots_total, c.created_at,
-             b.company_name, b.email
-      FROM campaigns c JOIN brands b ON b.id = c.brand_id
-      ORDER BY c.created_at DESC LIMIT 50
-    `),
+  const [statsResult, moneyResult, pageViewsResult] = await Promise.all([
     query(`
       SELECT
         (SELECT COUNT(*) FROM brands) AS total_brands,
@@ -34,83 +13,60 @@ export default async function AdminPage() {
         (SELECT COUNT(*) FROM campaigns WHERE status = 'open') AS open_campaigns,
         (SELECT COUNT(*) FROM brands WHERE subscription_status = 'active') AS active_subscriptions
     `),
+    // Pulled from our own business tables rather than parsing raw Paystack
+    // webhook JSON — commission_amount and wallet_transactions are the
+    // actual source of truth for what's been earned and what's held.
+    query(`
+      SELECT
+        (SELECT COALESCE(SUM(commission_amount), 0) FROM campaigns WHERE payment_status = 'paid') AS commission_earned,
+        (SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions) AS wallet_held_total,
+        (SELECT COALESCE(SUM(amount), 0) FROM wallet_transactions WHERE amount > 0) AS wallet_topups_lifetime,
+        (SELECT COUNT(*) FROM brands WHERE subscription_status = 'active') * 8 AS mrr
+    `),
+    query(`SELECT COUNT(*) AS count FROM page_views WHERE created_at > now() - interval '7 days'`),
   ]);
 
-  const brands = brandsResult.rows;
-  const campaigns = campaignsResult.rows;
   const stats = statsResult.rows[0];
+  const money = moneyResult.rows[0];
+  const landingPageViews = pageViewsResult.rows[0].count;
 
   return (
     <div className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
       <p className="eyebrow">Platform admin</p>
-      <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 24 }}>Everything, across every brand</h1>
+      <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 20 }}>Overview</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 40 }}>
+      <AdminNav active="/admin" />
+
+      <h2 style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Money</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 32 }}>
+        {[
+          ['Monthly recurring revenue', `$${Number(money.mrr).toFixed(2)}`, 'from active subscriptions'],
+          ['Commission earned', `$${Number(money.commission_earned).toFixed(2)}`, 'lifetime, from paid campaigns'],
+          ['Held in wallets right now', `$${Number(money.wallet_held_total).toFixed(2)}`, 'prepaid, not yet spent'],
+          ['Total ever topped up', `$${Number(money.wallet_topups_lifetime).toFixed(2)}`, 'gross wallet inflow'],
+        ].map(([label, value, sub]) => (
+          <div key={label} className="card" style={{ padding: 18 }}>
+            <p className="mono" style={{ fontSize: 22, color: 'var(--green)' }}>{value}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>{label}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-dim)', opacity: 0.7, marginTop: 2 }}>{sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2 style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activity</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
         {[
           ['Brands signed up', stats.total_brands],
           ['Active subscriptions', stats.active_subscriptions],
           ['Campaigns created', stats.total_campaigns],
           ['Currently open', stats.open_campaigns],
+          ['Landing page views (7d)', landingPageViews],
         ].map(([label, value]) => (
           <div key={label} className="card" style={{ padding: 18 }}>
             <p className="mono" style={{ fontSize: 22, color: 'var(--green)' }}>{value}</p>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>{label}</p>
           </div>
         ))}
-      </div>
-
-      <h2 style={{ fontSize: 18, marginBottom: 14 }}>Recent campaigns</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 40 }}>
-        {campaigns.map((c) => (
-          <div key={c.id} className="card" style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <p style={{ fontSize: 14 }}>{c.title}</p>
-              <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                {c.company_name} ({c.email}) · {c.campaign_type} · ${c.reward} × {c.slots_total} · {new Date(c.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                padding: '3px 9px',
-                borderRadius: 6,
-                background: STATUS_STYLES[c.status]?.bg || 'rgba(138,144,156,0.15)',
-                color: STATUS_STYLES[c.status]?.color || 'var(--text-dim)',
-              }}
-            >
-              {c.status}
-            </span>
-          </div>
-        ))}
-        {campaigns.length === 0 && <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>No campaigns yet.</p>}
-      </div>
-
-      <h2 style={{ fontSize: 18, marginBottom: 14 }}>Recent signups</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {brands.map((b) => (
-          <div key={b.id} className="card" style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <p style={{ fontSize: 14 }}>{b.company_name}</p>
-              <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-                {b.email} · joined {new Date(b.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                padding: '3px 9px',
-                borderRadius: 6,
-                background: b.subscription_status === 'active' ? 'rgba(62,207,142,0.15)' : 'rgba(138,144,156,0.15)',
-                color: b.subscription_status === 'active' ? 'var(--green)' : 'var(--text-dim)',
-              }}
-            >
-              {b.subscription_status || 'none'}
-            </span>
-          </div>
-        ))}
-        {brands.length === 0 && <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>No signups yet.</p>}
       </div>
     </div>
   );

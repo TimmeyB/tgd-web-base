@@ -44,6 +44,22 @@ button, input {
   padding: 0 24px;
 }
 
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 640px) {
   .container {
     padding: 0 16px;
@@ -53,6 +69,14 @@ button, input {
   }
   h1 {
     font-size: 22px !important;
+  }
+  .dashboard-header-actions {
+    width: 100%;
+    gap: 10px 14px;
+    font-size: 12px;
+  }
+  .dashboard-header-actions a:not(.btn) {
+    font-size: 12px !important;
   }
 }
 

@@ -8,17 +8,23 @@ export default function SignupPage() {
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [website, setWebsite] = useState(''); // honeypot — real users never see or fill this
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    if (!agreedToTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     setLoading(true);
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyName, email, password }),
+      body: JSON.stringify({ companyName, email, password, agreedToTerms, website }),
     });
     const data = await res.json();
     setLoading(false);
@@ -45,6 +51,19 @@ export default function SignupPage() {
               required
             />
           </div>
+          {/* Honeypot — invisible to real people, but a bot filling every field will trip it */}
+          <div style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true">
+            <label htmlFor="website">Website</label>
+            <input
+              id="website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
           <div className="field">
             <label htmlFor="email">Work email</label>
             <input
@@ -67,7 +86,19 @@ export default function SignupPage() {
             />
           </div>
           {error && <p className="error-text">{error}</p>}
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-dim)', marginTop: 12, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              I agree to the <a href="/terms" target="_blank" style={{ color: 'var(--green)' }}>Terms of Service</a> and{' '}
+              <a href="/privacy" target="_blank" style={{ color: 'var(--green)' }}>Privacy Policy</a>
+            </span>
+          </label>
+          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: 12 }}>
             {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>

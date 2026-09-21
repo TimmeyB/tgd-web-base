@@ -45,6 +45,10 @@ export async function POST(request) {
          WHERE id = $3`,
         [customer.customer_code, periodEnd, metadata.brandId]
       );
+      await query(
+        `UPDATE subscription_attempts SET status = 'completed', updated_at = now() WHERE reference = $1`,
+        [reference]
+      );
     }
 
     if (purpose === 'campaign_payment') {

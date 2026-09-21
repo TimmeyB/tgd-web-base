@@ -42,12 +42,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className="dashboard-header">
         <div>
           <p className="eyebrow">Dashboard</p>
           <h1 style={{ fontSize: 26, marginTop: 4 }}>Your campaigns</h1>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div className="dashboard-header-actions">
           <a href="/dashboard/new-campaign" className="btn btn-primary">New campaign</a>
           {archivedCount > 0 && (
             <a href="/dashboard/archive" className="mono" style={{ fontSize: 13, color: 'var(--text-dim)' }}>
