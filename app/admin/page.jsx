@@ -1,6 +1,7 @@
 import { query } from '@/lib/db';
 import { requirePlatformAdmin } from '@/lib/admin-auth';
 import AdminNav from './admin-nav';
+import AdminTable from './admin-table';
 
 export default async function AdminPage() {
   await requirePlatformAdmin();
@@ -30,6 +31,28 @@ export default async function AdminPage() {
   const money = moneyResult.rows[0];
   const landingPageViews = pageViewsResult.rows[0].count;
 
+  // Refresh this month's MRR snapshot to the latest live figure every time
+  // the overview loads. Cheap (one upsert, admin-only traffic) and needs no
+  // cron — the current month's row just keeps updating until the month
+  // rolls over, at which point a new row starts and prior months freeze.
+  await query(
+    `INSERT INTO mrr_snapshots (month, mrr, active_subscriptions)
+     VALUES (date_trunc('month', now()), $1, $2)
+     ON CONFLICT (month) DO UPDATE SET
+       mrr = EXCLUDED.mrr,
+       active_subscriptions = EXCLUDED.active_subscriptions,
+       updated_at = now()`,
+    [money.mrr, stats.active_subscriptions]
+  );
+
+  const mrrHistoryResult = await query(
+    `SELECT month, mrr, active_subscriptions
+     FROM mrr_snapshots
+     ORDER BY month DESC
+     LIMIT 12`
+  );
+  const mrrHistory = mrrHistoryResult.rows;
+
   return (
     <div className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
       <p className="eyebrow">Platform admin</p>
@@ -53,21 +76,15 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activity</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-        {[
-          ['Brands signed up', stats.total_brands],
-          ['Active subscriptions', stats.active_subscriptions],
-          ['Campaigns created', stats.total_campaigns],
-          ['Currently open', stats.open_campaigns],
-          ['Landing page views (7d)', landingPageViews],
-        ].map(([label, value]) => (
-          <div key={label} className="card" style={{ padding: 18 }}>
-            <p className="mono" style={{ fontSize: 22, color: 'var(--green)' }}>{value}</p>
-            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>{label}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+      <h2 style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>MRR history</h2>
+      <div style={{ marginBottom: 32 }}>
+        <AdminTable
+          columns={[
+            {
+              key: 'month',
+              label: 'Month',
+              render: (row) =>
+                new Date(row.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            },
+            { key: 'mrr', label: 'MRR', render: (row) => `$${Number(row.mrr).toFixed(2)}` },
+            { key: 'active_subscriptions', label: 'Active subs' },
