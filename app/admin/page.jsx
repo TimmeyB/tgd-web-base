@@ -88,3 +88,27 @@ export default async function AdminPage() {
             },
             { key: 'mrr', label: 'MRR', render: (row) => `$${Number(row.mrr).toFixed(2)}` },
             { key: 'active_subscriptions', label: 'Active subs' },
+          ]}
+          rows={mrrHistory.map((row) => ({ ...row, __key: row.month }))}
+          emptyText="No snapshots yet — check back after this month closes."
+        />
+      </div>
+
+      <h2 style={{ fontSize: 14, marginBottom: 12, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Activity</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+        {[
+          ['Brands signed up', stats.total_brands],
+          ['Active subscriptions', stats.active_subscriptions],
+          ['Campaigns created', stats.total_campaigns],
+          ['Currently open', stats.open_campaigns],
+          ['Landing page views (7d)', landingPageViews],
+        ].map(([label, value]) => (
+          <div key={label} className="card" style={{ padding: 18 }}>
+            <p className="mono" style={{ fontSize: 22, color: 'var(--green)' }}>{value}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
