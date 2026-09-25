@@ -32,7 +32,9 @@ export async function POST(request) {
   // look identical from the outside. The real account owner still finds
   // out, just by email instead of by the API response itself.
   if (existing.rows.length > 0) {
-    await sendExistingAccountNoticeEmail(existing.rows[0].email);
+    sendExistingAccountNoticeEmail(existing.rows[0].email).catch((err) =>
+      console.error('[signup] existing-account notice failed:', err.message)
+    );
     await query('INSERT INTO signup_attempts (email, outcome) VALUES ($1, $2)', [email.toLowerCase(), 'duplicate']);
     return NextResponse.json({ ok: true });
   }
@@ -45,10 +47,6 @@ export async function POST(request) {
   const brand = result.rows[0];
   await query('INSERT INTO signup_attempts (email, outcome) VALUES ($1, $2)', [email.toLowerCase(), 'created']);
 
-  // Fire-and-forget: a slow/failed email send shouldn't hold up signup or
-  // fail the request — sendVerificationEmail already swallows its own
-  // errors and logs them (see lib/email.js), same as every other email
-  // call in this codebase.
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -57,7 +55,12 @@ export async function POST(request) {
     [brand.id, tokenHash, expiresAt]
   );
   const origin = new URL(request.url).origin;
-  await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
+
+  // Genuinely fire-and-forget this time — not awaited, so a slow or failed
+  // send can never hold up account creation or leave the button stuck.
+  sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`).catch((err) =>
+    console.error('[signup] verification email failed:', err.message)
+  );
 
   const token = await createSessionToken(brand);
   const response = NextResponse.json({ ok: true });
