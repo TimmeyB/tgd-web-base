@@ -4,6 +4,7 @@ import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import LogoutButton from './logout-button';
 import SupportLink from './support-link';
 import CampaignActions from './campaign-actions';
+import ResendVerificationButton from './resend-verification-button';
 
 const TYPE_LABELS = {
   engagement: '💬 Engagement',
@@ -21,12 +22,42 @@ const STATUS_BADGE = {
   rejected: { bg: 'rgba(220,80,80,0.15)', color: 'var(--danger)', label: 'rejected' },
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
 
-  const brandResult = await query('SELECT subscription_status FROM brands WHERE id = $1', [session.brandId]);
-  const isActive = brandResult.rows[0]?.subscription_status === 'active';
+  const brandResult = await query('SELECT subscription_status, email_verified_at, email FROM brands WHERE id = $1', [session.brandId]);
+  const brand = brandResult.rows[0];
+  const isActive = brand?.subscription_status === 'active';
+
+  // Hard gate: no campaigns, no dashboard content at all until the email
+  // is confirmed. Deliberately stricter than the subscription-inactive
+  // state above (which just shows a nudge banner) — verification is the
+  // one thing we don't want anyone to be able to skip past.
+  if (!brand?.email_verified_at) {
+    const verify = searchParams?.verify;
+    return (
+      <div className="container" style={{ paddingTop: 48, paddingBottom: 80, maxWidth: 480 }}>
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <p className="eyebrow">Confirm your email</p>
+          <h1 style={{ fontSize: 22, marginTop: 8, marginBottom: 16 }}>One step left</h1>
+          {verify === 'expired' && (
+            <p style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 16 }}>
+              That link expired — request a new one below.
+            </p>
+          )}
+          <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 24 }}>
+            We sent a confirmation link to <strong style={{ color: 'var(--text)' }}>{brand?.email}</strong>.
+            Click it to unlock your dashboard.
+          </p>
+          <ResendVerificationButton />
+          <div style={{ marginTop: 24 }}>
+            <LogoutButton />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const result = await query(
     'SELECT * FROM campaigns WHERE brand_id = $1 AND archived_at IS NULL ORDER BY created_at DESC',
@@ -39,9 +70,15 @@ export default async function DashboardPage() {
     [session.brandId]
   );
   const archivedCount = Number(archivedCountResult.rows[0]?.count || 0);
+  const justVerified = searchParams?.verify === 'success';
 
   return (
     <div className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
+      {justVerified && (
+        <div style={{ background: 'rgba(62,207,142,0.15)', color: 'var(--green)', padding: '10px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>
+          ✓ Email confirmed
+        </div>
+      )}
       <div className="dashboard-header">
         <div>
           <p className="eyebrow">Dashboard</p>
