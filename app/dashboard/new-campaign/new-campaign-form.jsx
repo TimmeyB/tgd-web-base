@@ -103,8 +103,7 @@ const FIELD_LABELS = {
 
 export default function NewCampaignForm({ subscriptionActive = false }) {
   const router = useRouter();
-  const [step, setStep] = useState('type'); // 'type' | 'form'
-  const [campaignType, setCampaignType] = useState(null);
+  const [campaignType, setCampaignType] = useState('testing');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -116,9 +115,12 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
   const [successExampleMime, setSuccessExampleMime] = useState('');
   const [imageError, setImageError] = useState('');
 
-  const [screeningMode, setScreeningMode] = useState('none'); // 'none' | 'auto' | 'manual'
+  // 'testing' is the default selected type (see the dropdown below), so its
+  // screening defaults are pre-applied here too — kept in sync with what
+  // handleTypeChange sets when switching types.
+  const [screeningMode, setScreeningMode] = useState('manual'); // 'none' | 'auto' | 'manual'
   const [screeningPoolCap, setScreeningPoolCap] = useState('');
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState([newQuestion()]);
 
   const [durationDays, setDurationDays] = useState('');
   const [dailyReportTime, setDailyReportTime] = useState('');
@@ -147,9 +149,8 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     reader.readAsDataURL(file);
   }
 
-  function selectType(id) {
+  function handleTypeChange(id) {
     setCampaignType(id);
-    setStep('form');
     // Reset every field so switching types starts clean — otherwise numbers
     // and text typed for one campaign silently carry over to the next.
     setTitle('');
@@ -304,114 +305,49 @@ export default function NewCampaignForm({ subscriptionActive = false }) {
     }
   }
 
-  if (step === 'type') {
-    return (
-      <div className="container" style={{ maxWidth: 640, paddingTop: 48, paddingBottom: 80 }}>
-        <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
-          ← Back to dashboard
-        </a>
-        <p className="eyebrow">New campaign</p>
-        <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 8 }}>What kind of campaign is this?</h1>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>
-          Pick a type — testers only see campaigns that match what they're good at.
-        </p>
-        <div
-          className="card"
-          style={{
-            background: 'rgba(62,207,142,0.12)',
-            border: '1px solid var(--green)',
-            padding: 14,
-            marginBottom: 28,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 16 }}>⚡</span>
-          <p style={{ fontSize: 13, color: 'var(--green)' }}>
-            This isn't just a listing — once launched, real testers on Telegram can see and claim your campaign in under 2 minutes.
-          </p>
-        </div>
-        {(() => {
-          const featured = CAMPAIGN_TYPES.find((t) => t.id === 'testing');
-          const others = CAMPAIGN_TYPES.filter((t) => t.id !== 'testing');
-          return (
-            <>
-              <button
-                onClick={() => selectType(featured.id)}
-                className="card"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  padding: 24,
-                  border: '1px solid var(--green)',
-                  background: 'rgba(62,207,142,0.08)',
-                  marginBottom: 24,
-                }}
-              >
-                <p className="eyebrow" style={{ marginBottom: 8 }}>What TaskGrind is built for</p>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                  <div style={{ fontSize: 34 }}>{featured.icon}</div>
-                  <div>
-                    <h3 style={{ fontSize: 19, marginBottom: 6 }}>{featured.label}</h3>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 14, lineHeight: 1.5 }}>{featured.desc}</p>
-                  </div>
-                </div>
-              </button>
-
-              <p style={{ color: 'var(--text-dim)', fontSize: 12, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Other campaign types
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-                {others.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => selectType(t.id)}
-                    className="card"
-                    style={{
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      padding: 14,
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-raised)',
-                      opacity: 0.75,
-                    }}
-                  >
-                    <div style={{ fontSize: 18, marginBottom: 6 }}>{t.icon}</div>
-                    <h3 style={{ fontSize: 13, marginBottom: 4 }}>{t.label}</h3>
-                    <p style={{ color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.35 }}>{t.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </>
-          );
-        })()}
-      </div>
-    );
-  }
-
   const selectedType = CAMPAIGN_TYPES.find((t) => t.id === campaignType);
   const labels = FIELD_LABELS[campaignType] || FIELD_LABELS.testing;
 
   return (
     <div className="container" style={{ maxWidth: 560, paddingTop: 48, paddingBottom: 80 }}>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
-        <button
-          onClick={() => setStep('type')}
-          style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: 13, cursor: 'pointer', padding: 0 }}
-        >
-          ← Change campaign type
-        </button>
-        <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none' }}>
-          Back to dashboard
-        </a>
+      <a href="/dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'inline-block', marginBottom: 12 }}>
+        ← Back to dashboard
+      </a>
+      <p className="eyebrow">New campaign</p>
+      <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 12 }}>Launch a campaign</h1>
+      <div
+        className="card"
+        style={{
+          background: 'rgba(62,207,142,0.12)',
+          border: '1px solid var(--green)',
+          padding: 14,
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 16 }}>⚡</span>
+        <p style={{ fontSize: 13, color: 'var(--green)' }}>
+          This isn't just a listing — once launched, real testers on Telegram can see and claim your campaign in under 2 minutes.
+        </p>
       </div>
-      <p className="eyebrow">{selectedType.icon} {selectedType.label} campaign</p>
-      <h1 style={{ fontSize: 26, marginTop: 4, marginBottom: 32 }}>Launch a campaign</h1>
 
       <form onSubmit={handleSubmit} className="card">
+        <div className="field">
+          <label htmlFor="campaignType">Campaign type</label>
+          <select
+            id="campaignType"
+            value={campaignType}
+            onChange={(e) => handleTypeChange(e.target.value)}
+          >
+            {CAMPAIGN_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>{t.icon} {t.label}</option>
+            ))}
+          </select>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>{selectedType.desc}</p>
+        </div>
+
         <div className="field">
           <label htmlFor="title">Title</label>
           <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={labels.titlePlaceholder} required />
