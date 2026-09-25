@@ -1,7 +1,8 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { hashPassword, createSessionToken, SESSION_COOKIE } from '@/lib/auth';
-import { sendExistingAccountNoticeEmail } from '@/lib/email';
+import { sendExistingAccountNoticeEmail, sendVerificationEmail } from '@/lib/email';
 
 export async function POST(request) {
   const { companyName, email, password, agreedToTerms, website } = await request.json();
@@ -43,6 +44,20 @@ export async function POST(request) {
   );
   const brand = result.rows[0];
   await query('INSERT INTO signup_attempts (email, outcome) VALUES ($1, $2)', [email.toLowerCase(), 'created']);
+
+  // Fire-and-forget: a slow/failed email send shouldn't hold up signup or
+  // fail the request — sendVerificationEmail already swallows its own
+  // errors and logs them (see lib/email.js), same as every other email
+  // call in this codebase.
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await query(
+    `INSERT INTO email_verification_tokens (brand_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+    [brand.id, tokenHash, expiresAt]
+  );
+  const origin = new URL(request.url).origin;
+  await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
 
   const token = await createSessionToken(brand);
   const response = NextResponse.json({ ok: true });
