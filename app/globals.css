@@ -114,7 +114,7 @@ button, input {
   font-weight: 500;
 }
 
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -124,10 +124,30 @@ button, input {
   width: 100%;
 }
 
-.field input:focus, .field textarea:focus {
+.field input:focus, .field textarea:focus, .field select:focus {
   outline: 2px solid var(--green);
   outline-offset: 1px;
   border-color: var(--green);
+}
+
+/* Without this, file inputs fall back to the browser's default light-grey
+   button with dark text — the one native-chrome element left standing out
+   against an otherwise near-black theme. */
+.field input[type="file"] {
+  padding: 8px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.field input[type="file"]::file-selector-button,
+.field input[type="file"]::-webkit-file-upload-button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: var(--text);
+  font-size: 13px;
+  margin-right: 10px;
+  cursor: pointer;
 }
 
 .btn {
