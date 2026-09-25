@@ -21,18 +21,27 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const res = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyName, email, password, agreedToTerms, website }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error || 'Something went wrong.');
-      return;
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName, email, password, agreedToTerms, website }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong.');
+        return;
+      }
+      router.push('/dashboard');
+    } catch (err) {
+      // Covers network failures and non-JSON error responses (e.g. a
+      // timeout or crash returning an HTML error page instead of JSON) —
+      // without this, the button could get stuck on "Creating account…"
+      // forever with no explanation at all.
+      setError('Something went wrong reaching the server. Check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
-    router.push('/dashboard');
   }
 
   return (
@@ -108,4 +117,4 @@ export default function SignupPage() {
       </div>
     </>
   );
-}
+              }
