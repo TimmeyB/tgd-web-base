@@ -24,7 +24,13 @@ export async function POST(request) {
   );
 
   const origin = new URL(request.url).origin;
-  await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
+
+  // Fire-and-forget here too, for the same reason — the button shouldn't
+  // hang (or error out) waiting on Resend before confirming the request
+  // itself went through.
+  sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`).catch((err) =>
+    console.error('[resend-verification] send failed:', err.message)
+  );
 
   return NextResponse.json({ ok: true });
 }
