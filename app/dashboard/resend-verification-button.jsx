@@ -1,47 +1,38 @@
-'use client';
+import crypto from 'crypto';
+import { NextResponse, unstable_after as after } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import { query } from '@/lib/db';
+import { sendVerificationEmail } from '@/lib/email';
 
-import { useState } from 'react';
+export const maxDuration = 30;
 
-export default function ResendVerificationButton() {
-  const [state, setState] = useState('idle'); // idle | sending | sent | error
-  const [errorMsg, setErrorMsg] = useState('');
+export async function POST(request) {
+  const token = cookies().get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySessionToken(token) : null;
+  if (!session) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 });
 
-  async function handleResend() {
-    setState('sending');
+  const result = await query('SELECT email, email_verified_at FROM brands WHERE id = $1', [session.brandId]);
+  const brand = result.rows[0];
+  if (!brand) return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
+  if (brand.email_verified_at) return NextResponse.json({ error: 'This email is already verified.' }, { status: 400 });
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const origin = new URL(request.url).origin;
+
+  after(async () => {
     try {
-      const res = await fetch('/api/auth/resend-verification', { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErrorMsg(data.error || `Server error (${res.status})`);
-        setState('error');
-        return;
-      }
-      setState('sent');
+      await query(
+        `INSERT INTO email_verification_tokens (brand_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+        [session.brandId, tokenHash, expiresAt]
+      );
+      await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
     } catch (err) {
-      setErrorMsg('Network error — could not reach the server.');
-      setState('error');
+      console.error('[resend-verification] post-response work failed:', err.message);
     }
-  }
+  });
 
-  if (state === 'sent') {
-    return <p style={{ color: 'var(--green)', fontSize: 14 }}>Sent — check your inbox (and spam folder).</p>;
-  }
-
-  return (
-    <div>
-      <button
-        onClick={handleResend}
-        disabled={state === 'sending'}
-        className="btn btn-primary"
-        style={{ opacity: state === 'sending' ? 0.6 : 1 }}
-      >
-        {state === 'sending' ? 'Sending…' : 'Resend verification email'}
-      </button>
-      {state === 'error' && (
-        <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>
-          {errorMsg}
-        </p>
-      )}
-    </div>
-  );
+  return NextResponse.json({ ok: true });
 }
