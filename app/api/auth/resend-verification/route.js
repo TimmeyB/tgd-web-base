@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { NextResponse, unstable_after as after } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
 import { query } from '@/lib/db';
@@ -20,19 +20,13 @@ export async function POST(request) {
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const origin = new URL(request.url).origin;
+  await query(
+    `INSERT INTO email_verification_tokens (brand_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+    [session.brandId, tokenHash, expiresAt]
+  );
 
-  after(async () => {
-    try {
-      await query(
-        `INSERT INTO email_verification_tokens (brand_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
-        [session.brandId, tokenHash, expiresAt]
-      );
-      await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
-    } catch (err) {
-      console.error('[resend-verification] post-response work failed:', err.message);
-    }
-  });
+  const origin = new URL(request.url).origin;
+  await sendVerificationEmail(brand.email, `${origin}/api/auth/verify-email?token=${rawToken}`);
 
   return NextResponse.json({ ok: true });
 }
