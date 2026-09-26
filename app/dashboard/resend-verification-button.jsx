@@ -4,14 +4,21 @@ import { useState } from 'react';
 
 export default function ResendVerificationButton() {
   const [state, setState] = useState('idle'); // idle | sending | sent | error
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function handleResend() {
     setState('sending');
     try {
       const res = await fetch('/api/auth/resend-verification', { method: 'POST' });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErrorMsg(data.error || `Server error (${res.status})`);
+        setState('error');
+        return;
+      }
       setState('sent');
-    } catch {
+    } catch (err) {
+      setErrorMsg('Network error — could not reach the server.');
       setState('error');
     }
   }
@@ -32,7 +39,7 @@ export default function ResendVerificationButton() {
       </button>
       {state === 'error' && (
         <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>
-          Couldn't send it — try again in a moment.
+          {errorMsg}
         </p>
       )}
     </div>
